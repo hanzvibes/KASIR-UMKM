@@ -83,7 +83,7 @@ begin
     raise exception 'Business access denied' using errcode = '42501';
   end if;
 
-  if p_payment_method not in ('cash', 'transfer', 'other') then
+  if p_payment_method is null or p_payment_method not in ('cash', 'transfer', 'other') then
     raise exception 'Invalid payment method' using errcode = '22023';
   end if;
 
@@ -91,7 +91,7 @@ begin
     raise exception 'Idempotency key is required' using errcode = '22023';
   end if;
 
-  if jsonb_typeof(p_items) <> 'array'
+  if p_items is null or jsonb_typeof(p_items) is distinct from 'array'
      or jsonb_array_length(p_items) < 1
      or jsonb_array_length(p_items) > 100 then
     raise exception 'Cart must contain between 1 and 100 items' using errcode = '22023';
