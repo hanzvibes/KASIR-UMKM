@@ -14,7 +14,7 @@ export async function checkoutAction(formData: FormData) {
   const paymentMethod = formData.get("payment_method");
 
   if (typeof rawItems !== "string" || rawItems.length > 30000) fail("Keranjang tidak valid.");
-  if (typeof idempotencyKey !== "string" || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
+  if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
   if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "other") fail("Metode pembayaran tidak valid.");
 
   let parsed: unknown;
@@ -25,14 +25,27 @@ export async function checkoutAction(formData: FormData) {
   }
   if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 100) fail("Keranjang harus berisi 1 sampai 100 baris produk.");
 
-  const items = parsed.map((item: unknown) => {
+  const parsedItems = parsed.map((item: unknown) => {
     if (!item || typeof item !== "object" || !("product_id" in item) || !("quantity" in item)
       || typeof item.product_id !== "string" || typeof item.quantity !== "number"
       || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 1000000) {
       fail("Produk atau jumlah barang tidak valid.");
     }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.product_id)) {
+      fail("ID produk tidak valid. Muat ulang halaman kasir.");
+    }
     return { product_id: item.product_id, quantity: item.quantity };
   });
+
+  // Merge repeated product IDs before calling the database so a crafted request
+  // cannot bypass cart-level stock checks by splitting one product into lines.
+  const quantities = new Map<string, number>();
+  for (const item of parsedItems) {
+    const quantity = (quantities.get(item.product_id) ?? 0) + item.quantity;
+    if (!Number.isFinite(quantity) || quantity > 1000000) fail("Jumlah total produk tidak valid.");
+    quantities.set(item.product_id, quantity);
+  }
+  const items = Array.from(quantities, ([product_id, quantity]) => ({ product_id, quantity }));
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();

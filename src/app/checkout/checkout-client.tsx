@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { checkoutAction } from "./actions";
 
@@ -37,6 +37,7 @@ export default function CheckoutClient({
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
+  const [submitting, setSubmitting] = useState(false);
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("id-ID");
@@ -71,6 +72,14 @@ export default function CheckoutClient({
     }
     if (product?.track_stock && product.stock_qty !== null && quantity > product.stock_qty) return;
     setCart((current) => current.map((line) => line.productId === productId ? { ...line, quantity } : line));
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (submitting || cart.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    setSubmitting(true);
   }
 
   const serializedItems = JSON.stringify(cart.map((line) => ({
@@ -133,7 +142,7 @@ export default function CheckoutClient({
         )}
         <div className="mt-4 border-t border-line pt-4">
           <div className="flex items-center justify-between"><span className="text-sm text-muted">Total</span><strong className="text-xl">{rupiah(subtotal)}</strong></div>
-          <form action={checkoutAction} className="mt-4 space-y-4">
+          <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-4">
             <input type="hidden" name="items" value={serializedItems} />
             <input type="hidden" name="idempotency_key" value={idempotencyKey} />
             <label className="grid gap-1.5 text-sm font-medium">Metode pembayaran
@@ -141,7 +150,7 @@ export default function CheckoutClient({
                 <option value="cash">Tunai</option><option value="transfer">Transfer</option><option value="other">Lainnya</option>
               </select>
             </label>
-            <button type="submit" disabled={cart.length === 0 || products.length === 0} className="w-full rounded-xl bg-brand px-4 py-3 font-semibold text-white hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">Simpan transaksi</button>
+            <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting} className="w-full rounded-xl bg-brand px-4 py-3 font-semibold text-white hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Menyimpan transaksi..." : "Simpan transaksi"}</button>
             <p className="text-xs leading-5 text-muted">Total dan stok diverifikasi kembali oleh database saat transaksi disimpan.</p>
           </form>
         </div>
