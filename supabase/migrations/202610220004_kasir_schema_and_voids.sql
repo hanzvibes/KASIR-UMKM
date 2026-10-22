@@ -46,6 +46,34 @@ create table if not exists public.kasir_products (
 );
 create unique index if not exists kasir_products_business_sku_unique
   on public.kasir_products(business_id, sku) where sku is not null;
+
+-- Replace category foreign keys that could try to null the required business_id
+-- when a category is deleted. A referenced category must remain in use until reassigned.
+create unique index if not exists kasir_categories_business_id_id_unique
+  on public.kasir_categories(business_id, id);
+do $
+declare constraint_row record;
+begin
+  for constraint_row in
+    select c.conname
+    from pg_constraint c
+    where c.conrelid = 'public.kasir_products'::regclass
+      and c.contype = 'f'
+      and exists (
+        select 1
+        from unnest(c.conkey) as key_column(attnum)
+        join pg_attribute a on a.attrelid = c.conrelid and a.attnum = key_column.attnum
+        where a.attname = 'category_id'
+      )
+  loop
+    execute format('alter table public.kasir_products drop constraint %I', constraint_row.conname);
+  end loop;
+  alter table public.kasir_products
+    add constraint kasir_products_category_business_fk
+    foreign key (business_id, category_id)
+    references public.kasir_categories(business_id, id)
+    on delete restrict;
+end $;
 create table if not exists public.kasir_sales (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.kasir_businesses(id) on delete cascade,

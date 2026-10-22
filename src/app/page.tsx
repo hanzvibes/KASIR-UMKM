@@ -40,7 +40,7 @@ export default async function HomePage() {
     supabase.from("kasir_expenses").select("amount, expense_date")
       .eq("business_id", membership.business_id).eq("expense_date", today),
     supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
-      .eq("business_id", membership.business_id).order("created_at", { ascending: false }).limit(5),
+      .eq("business_id", membership.business_id).eq("status", "completed").order("created_at", { ascending: false }).limit(5),
   ]);
 
   const saleList = sales ?? [];
