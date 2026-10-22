@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
@@ -27,7 +28,7 @@ export default function HomePage() {
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted">Menu utama</p>
         <nav className="space-y-1">
           {navItems.map(({ label, icon: Icon, active }) => (
-            <a key={label} href="#" aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={18} strokeWidth={1.8} />{label}
             </a>
           ))}
@@ -61,9 +62,9 @@ export default function HomePage() {
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h2>
               <p className="mt-2 text-sm text-muted">Pantau penjualan dan aktivitas usahamu.</p>
             </div>
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-[#196640]">
-              <Plus size={17} /> Siapkan usaha
-            </button>
+            <Link href="/checkout" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-[#196640]">
+              <Plus size={17} /> Mulai transaksi
+            </Link>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -118,7 +119,7 @@ export default function HomePage() {
 
         <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-white/95 px-2 py-2 backdrop-blur md:hidden">
           {[navItems[0], navItems[1], navItems[2], navItems[3]].map(({ label, icon: Icon, active }) => (
-            <a key={label} href="#" className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium ${active ? "text-brand" : "text-muted"}`}>
+            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Dashboard" ? "/" : "#"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium ${active ? "text-brand" : "text-muted"}`}>
               <Icon size={19} />{label}
             </a>
           ))}
