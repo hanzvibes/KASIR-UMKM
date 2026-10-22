@@ -44,15 +44,15 @@ export default function MobileBottomNav() {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined}
-              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${active ? "text-brand" : "text-muted hover:text-ink"}`}>
-              <Icon size={19} strokeWidth={active ? 2.3 : 1.8} />
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${active ? "bg-brand-soft/80 text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+              <Icon size={19} strokeWidth={active ? 2.3 : 1.8} aria-hidden="true" />
               <span>{short}</span>
             </Link>
           );
         })}
         <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Menu lainnya"
-          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${menuOpen || inMoreSection ? "text-brand" : "text-muted hover:text-ink"}`}>
-          <MoreHorizontal size={20} strokeWidth={menuOpen || inMoreSection ? 2.3 : 1.8} />
+          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${menuOpen || inMoreSection ? "bg-brand-soft/80 text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+          <MoreHorizontal size={20} strokeWidth={menuOpen || inMoreSection ? 2.3 : 1.8} aria-hidden="true" />
           <span>Lainnya</span>
         </button>
       </nav>

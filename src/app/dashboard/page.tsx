@@ -99,13 +99,13 @@ export default async function HomePage() {
             <h1 className="text-lg font-semibold">Ringkasan usaha</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand sm:inline-flex">Paket Gratis</span>
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#e8eee9] text-sm font-semibold">U</div>
+            <span className="hidden rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand sm:inline-flex">{membership.role === "owner" ? "Pemilik usaha" : "Tim kasir"}</span>
+            <div aria-label={user.email ?? "Akun pengguna"} title={user.email ?? "Akun pengguna"} className="grid h-9 w-9 place-items-center rounded-full bg-[#e8eee9] text-sm font-semibold uppercase">{user.email?.trim().charAt(0) || "U"}</div>
           </div>
         </header>
 
         <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-7 md:pb-8">
-          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="mb-6 flex flex-col justify-between gap-4 rounded-3xl border border-[#dce9df] bg-[linear-gradient(135deg,#ffffff_0%,#f0f7f1_100%)] p-5 shadow-soft sm:flex-row sm:items-end sm:p-7">
             <div>
               <p className="mb-1 text-sm text-muted capitalize">{todayLabel}</p>
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h2>
@@ -117,11 +117,11 @@ export default async function HomePage() {
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {stats.map(({ label, value, detail, icon: Icon }) => (
-              <article key={label} className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+            {stats.map(({ label, value, detail, icon: Icon }, index) => (
+              <article key={label} className={`rounded-2xl border p-4 shadow-soft sm:p-5 ${index === 0 ? "border-[#cfe4d4] bg-[#f1f8f2]" : "border-line bg-white"}`}>
                 <div className="mb-4 flex items-start justify-between gap-2">
                   <p className="text-xs font-medium leading-5 text-muted sm:text-sm">{label}</p>
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><Icon size={18} /></span>
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${index === 0 ? "bg-white text-brand" : "bg-canvas text-brand"}`}><Icon size={18} /></span>
                 </div>
                 <p className="text-xl font-bold tracking-tight sm:text-2xl">{value}</p>
                 <p className="mt-2 text-xs text-muted">{detail}</p>

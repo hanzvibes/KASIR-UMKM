@@ -90,6 +90,20 @@ export default function CheckoutClient({
     }
   }, [errorMessage, idempotencyKey, productById]);
 
+  useEffect(() => {
+    if (!cartOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCartOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [cartOpen]);
+
   function addProduct(product: Product) {
     setCart((current) => {
       const existing = current.find((line) => line.productId === product.id);
@@ -202,7 +216,7 @@ export default function CheckoutClient({
                 <div className="flex flex-wrap gap-2">
                   {quickCashAmounts.map((amount) => (
                     <button key={amount} type="button" onClick={() => setCashReceived(String(amount))}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted active:bg-canvas">
+                      className="min-h-10 rounded-full border border-line px-3 py-2 text-xs font-semibold text-muted active:bg-canvas">
                       {amount === subtotal ? "Uang pas" : rupiah(amount)}
                     </button>
                   ))}
@@ -256,12 +270,12 @@ export default function CheckoutClient({
 
           <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filter kategori">
             <button type="button" onClick={() => setCategoryId("all")} aria-pressed={categoryId === "all"}
-              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-colors ${categoryId === "all" ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
+              className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-bold transition-colors ${categoryId === "all" ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
               Semua
             </button>
             {categories.map((category) => (
               <button key={category.id} type="button" onClick={() => setCategoryId(category.id)} aria-pressed={categoryId === category.id}
-                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${categoryId === category.id ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
+                className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-semibold transition-colors ${categoryId === category.id ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
                 {category.name}
               </button>
             ))}
@@ -317,7 +331,7 @@ export default function CheckoutClient({
       </div>
 
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-cart-title"
             className="max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-canvas p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:px-6">
             <div className="mx-auto max-w-2xl">

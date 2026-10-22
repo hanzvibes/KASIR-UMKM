@@ -5,7 +5,7 @@ import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive } from "./actions";
 
-type SearchParams = Promise<{ error?: string; success?: string }>;
+type SearchParams = Promise<{ error?: string; success?: string; search?: string }>;
 
 const successMessages: Record<string, string> = {
   category_created: "Kategori berhasil ditambahkan.",
@@ -43,6 +43,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const categoryList = categories ?? [];
   const productList = products ?? [];
   const categoryNames = new Map(categoryList.map((category) => [category.id, category.name]));
+  const searchTerm = (params.search ?? "").trim();
+  const visibleProducts = searchTerm
+    ? productList.filter((product) => `${product.name} ${product.sku ?? ""} ${categoryNames.get(product.category_id ?? "") ?? ""}`.toLocaleLowerCase("id-ID").includes(searchTerm.toLocaleLowerCase("id-ID")))
+    : productList;
   const canManage = membership.role === "owner";
 
   return (
@@ -119,14 +123,14 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         </div>
 
         <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
-          <div className="flex items-center justify-between border-b border-line p-5 sm:px-6"><div><h2 className="font-semibold">Daftar produk</h2><p className="mt-1 text-sm text-muted">{productList.length} produk terdaftar</p></div><span className="rounded-lg bg-canvas p-2 text-muted"><Boxes size={18} /></span></div>
-          {productList.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">Belum ada produk</p><p className="mt-1 text-sm text-muted">Tambahkan produk lewat formulir di atas.</p></div> : (
+          <div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div className="flex items-center gap-3"><span className="rounded-lg bg-canvas p-2 text-muted"><Boxes size={18} /></span><div><h2 className="font-semibold">Daftar produk</h2><p className="mt-1 text-sm text-muted">{searchTerm ? `${visibleProducts.length} dari ${productList.length} produk` : `${productList.length} produk terdaftar`}</p></div></div><form action="/products" method="get" role="search" className="flex w-full gap-2 sm:max-w-sm"><input name="search" type="search" defaultValue={searchTerm} aria-label="Cari produk" placeholder="Cari nama, SKU, kategori…" className="min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm" /><button className="rounded-xl border border-line px-3 py-2.5 text-sm font-semibold hover:bg-canvas">Cari</button></form></div>
+          {productList.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">Belum ada produk</p><p className="mt-1 text-sm text-muted">Tambahkan produk lewat formulir di atas.</p></div> : visibleProducts.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">Produk tidak ditemukan</p><p className="mt-1 text-sm text-muted">Coba kata kunci lain atau kosongkan pencarian.</p><Link href="/products" className="mt-4 inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Hapus pencarian</Link></div> : (
             <div className="divide-y divide-line">
-              {productList.map((product) => (
+              {visibleProducts.map((product) => (
                 <details key={product.id} className="group p-4 sm:p-5">
                   <summary className="flex cursor-pointer list-none items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><PackagePlus size={18} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{product.name}</span><span className="mt-1 block text-xs text-muted">{categoryNames.get(product.category_id ?? "") ?? "Tanpa kategori"} · {product.sku || "Tanpa SKU"}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{product.name}</span><span className="mt-1 block text-xs text-muted">{categoryNames.get(product.category_id ?? "") ?? "Tanpa kategori"} · {product.sku || "Tanpa SKU"}{product.track_stock ? ` · Stok ${product.stock_qty ?? 0} ${product.unit}` : " · Stok tidak dilacak"}</span></span>
                     <span className="text-right"><span className="block text-sm font-semibold">{money(product.price)}</span><span className={`mt-1 block text-xs ${product.is_active ? "text-green-700" : "text-muted"}`}>{product.is_active ? "Aktif" : "Nonaktif"}</span></span>
                   </summary>
                   {canManage && <form action={updateProduct} className="mt-4 grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-2">
