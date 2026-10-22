@@ -4,7 +4,7 @@ A mobile-first point-of-sale app for Indonesian small businesses. Built with Nex
 
 ## Current milestone
 
-Foundation scaffold only. Authentication, business onboarding, tenant-scoped database schema, POS transactions, and reporting are not yet complete.
+Foundation, Supabase sign-in/sign-up, business onboarding RPC integration, initial tenant-scoped schema/RLS migration, and money calculation helpers are present. POS transactions, product management UI, and reporting are not yet complete.
 
 ## Requirements
 
