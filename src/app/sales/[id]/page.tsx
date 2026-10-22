@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 import PrintReceiptButton from "./print-button";
 import { voidSaleAction } from "../actions";
 
@@ -74,6 +75,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
           <Link href="/sales" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-center text-sm font-semibold">Riwayat transaksi</Link>
         </div>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
