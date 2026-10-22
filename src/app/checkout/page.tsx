@@ -17,12 +17,17 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     .from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("id, name, sku, unit, price, stock_qty, track_stock")
-    .eq("business_id", membership.business_id)
-    .eq("is_active", true)
-    .order("name");
+  const [{ data: products, error }, { data: categories, error: categoriesError }] = await Promise.all([
+    supabase.from("products")
+      .select("id, name, sku, category_id, unit, price, stock_qty, track_stock")
+      .eq("business_id", membership.business_id)
+      .eq("is_active", true)
+      .order("name"),
+    supabase.from("categories")
+      .select("id, name")
+      .eq("business_id", membership.business_id)
+      .order("name"),
+  ]);
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -33,8 +38,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
         </div>
       </header>
       <div className="mx-auto max-w-7xl space-y-5 p-4 pb-10 sm:p-7">
-        {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Produk belum bisa dimuat. Pastikan migrasi awal sudah diterapkan di Supabase development.</p>}
-        <CheckoutClient products={products ?? []} idempotencyKey={randomUUID()} errorMessage={params.error} />
+        {(error || categoriesError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori belum bisa dimuat. Pastikan migrasi awal sudah diterapkan di Supabase development.</p>}
+        <CheckoutClient products={products ?? []} categories={categories ?? []} idempotencyKey={randomUUID()} errorMessage={params.error} />
       </div>
     </main>
   );
