@@ -16,7 +16,7 @@ export default async function SalesHistoryPage() {
   if (membershipError || !membership) redirect("/onboarding");
 
   const { data: sales, error } = await supabase.from("kasir_sales")
-    .select("id, payment_method, total_amount, created_at")
+    .select("id, payment_method, total_amount, created_at, status")
     .eq("business_id", membership.business_id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -36,7 +36,7 @@ export default async function SalesHistoryPage() {
             {(sales ?? []).map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} className="flex items-center gap-3 border-b border-line p-4 last:border-b-0 hover:bg-canvas sm:px-5">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={18} /></span>
               <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8)}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span>
-              <span className="text-right"><span className="block text-sm font-bold">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs ${"text-green-700"}`}>{"Tersimpan"}</span></span>
+              <span className="text-right"><span className="block text-sm font-bold">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs ${sale.status === "voided" ? "text-red-700" : "text-green-700"}`}>{sale.status === "voided" ? "Dibatalkan" : "Tersimpan"}</span></span>
             </Link>)}
           </div>
         )}

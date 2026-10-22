@@ -28,7 +28,7 @@ export default async function ReportsPage() {
   const from = `${month.start}T00:00:00+07:00`;
   const to = `${month.next}T00:00:00+07:00`;
   const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }] = await Promise.all([
-    supabase.from("kasir_sales").select("id, total_amount, created_at").eq("business_id", membership.business_id).gte("created_at", from).lt("created_at", to),
+    supabase.from("kasir_sales").select("id, total_amount, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to),
     supabase.from("kasir_expenses").select("amount, expense_date").eq("business_id", membership.business_id).gte("expense_date", month.start).lt("expense_date", month.next),
   ]);
 

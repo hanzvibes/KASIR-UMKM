@@ -36,7 +36,7 @@ export default async function HomePage() {
   const to = next.toISOString();
   const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }, { data: recentSales }] = await Promise.all([
     supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
-      .eq("business_id", membership.business_id).gte("created_at", from).lt("created_at", to),
+      .eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to),
     supabase.from("kasir_expenses").select("amount, expense_date")
       .eq("business_id", membership.business_id).eq("expense_date", today),
     supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")

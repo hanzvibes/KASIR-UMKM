@@ -4,7 +4,7 @@ A mobile-first point-of-sale app for Indonesian small businesses. Built with Nex
 
 ## Current milestone
 
-Foundation, Supabase sign-in/sign-up, business onboarding RPC integration, initial tenant-scoped schema/RLS migration, and money calculation helpers are present. POS transactions, product management UI, and reporting are not yet complete.
+Current implementation includes Supabase authentication and onboarding, tenant-scoped product/category management, POS checkout with database-side stock validation and idempotency, transaction receipts/history, expense tracking, dashboard, and monthly reports. The additive `202610220004_kasir_schema_and_voids.sql` migration aligns fresh installs with the `kasir_*` tables and adds audited stock movements and owner-only transaction cancellation. Review and apply migrations deliberately to the intended non-production project before using these features.
 
 ## Requirements
 
