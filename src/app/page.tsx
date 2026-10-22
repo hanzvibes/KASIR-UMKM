@@ -21,14 +21,14 @@ export default function HomePage() {
   return (
     <main className="min-h-screen md:flex">
       <aside className="hidden w-64 shrink-0 border-r border-line bg-white p-5 md:flex md:flex-col">
-        <a href="/" className="mb-9 flex items-center gap-3">
+        <Link href="/" className="mb-9 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={21} /></span>
           <span><strong className="block text-base">Kasir UMKM</strong><small className="text-muted">Teman usaha harian</small></span>
-        </a>
+        </Link>
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted">Menu utama</p>
         <nav className="space-y-1">
           {navItems.map(({ label, icon: Icon, active }) => (
-            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+            <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={18} strokeWidth={1.8} />{label}
             </a>
           ))}
@@ -119,7 +119,7 @@ export default function HomePage() {
 
         <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t border-line bg-white/95 px-1 py-2 backdrop-blur md:hidden">
           {navItems.map(({ label, icon: Icon, active }) => (
-            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : "/"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-medium ${active ? "text-brand" : "text-muted"}`}>
+            <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : "/"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-medium ${active ? "text-brand" : "text-muted"}`}>
               <Icon size={18} />{label === "Pengeluaran" ? "Biaya" : label}
             </a>
           ))}
