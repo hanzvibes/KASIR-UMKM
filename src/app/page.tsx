@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, active: true },
