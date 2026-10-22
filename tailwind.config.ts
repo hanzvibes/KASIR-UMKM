@@ -9,6 +9,7 @@ const config: Config = {
         muted: "#6f7c74",
         line: "#e5eae6",
         canvas: "#f6f8f6",
+        skeleton: "#edf1ee",
         brand: "#217a50",
         "brand-soft": "#e5f4eb",
       },
