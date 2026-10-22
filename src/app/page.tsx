@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, active: true },
@@ -28,7 +28,7 @@ export default function HomePage() {
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted">Menu utama</p>
         <nav className="space-y-1">
           {navItems.map(({ label, icon: Icon, active }) => (
-            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={18} strokeWidth={1.8} />{label}
             </a>
           ))}
