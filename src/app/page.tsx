@@ -25,9 +25,21 @@ export default async function HomePage() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) redirect("/login");
 
-  const { data: membership, error: membershipError } = await supabase
-    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
-  if (membershipError || !membership) redirect("/onboarding");
+  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+  if (membershipError) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-canvas px-4 py-10">
+        <section className="w-full max-w-lg rounded-2xl border border-line bg-white p-6 shadow-soft sm:p-8">
+          <h1 className="text-xl font-bold">Usaha belum bisa dimuat</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">Akunmu sudah masuk, tetapi data keanggotaan usaha gagal dibaca. Kami tidak akan mengarahkanmu untuk membuat usaha baru atau mengubah data yang ada.</p>
+          <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-800">Perlu menerapkan migrasi <code>202610220005_membership_recovery.sql</code> ke proyek Supabase yang digunakan aplikasi, lalu muat ulang halaman.</p>
+          <Link href="/" className="mt-5 inline-flex rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">Coba lagi</Link>
+        </section>
+      </main>
+    );
+  }
+  const membership = memberships?.[0];
+  if (!membership) redirect("/onboarding");
 
   const today = jakartaToday();
   const start = new Date(`${today}T00:00:00+07:00`);
