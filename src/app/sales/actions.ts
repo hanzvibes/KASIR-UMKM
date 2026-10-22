@@ -15,12 +15,15 @@ export async function voidSaleAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: memberships, error: membershipError },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: membership, error: membershipError } = await supabase
-    .from("kasir_business_members").select("business_id, role")
-    .eq("user_id", user.id).limit(1).maybeSingle();
+  const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
   if (membership.role !== "owner") redirect(`/sales/${saleId}?error=owner_only`);
 
