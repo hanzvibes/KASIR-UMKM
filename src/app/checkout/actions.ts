@@ -41,18 +41,28 @@ export async function checkoutAction(formData: FormData) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.product_id)) {
       fail("ID produk tidak valid. Muat ulang halaman kasir.");
     }
-    return { product_id: item.product_id, quantity: item.quantity };
+    let variantOptionId: string | null = null;
+    if ("variant_option_id" in item && item.variant_option_id !== null && item.variant_option_id !== "") {
+      if (typeof item.variant_option_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.variant_option_id)) {
+        fail("Pilihan produk tidak valid. Muat ulang halaman kasir.");
+      }
+      variantOptionId = item.variant_option_id;
+    }
+    return { product_id: item.product_id, quantity: item.quantity, variant_option_id: variantOptionId };
   });
 
-  // Merge repeated product IDs before calling the database so a crafted request
-  // cannot bypass cart-level stock checks by splitting one product into lines.
+  // Merge repeated product and option pairs so split lines cannot bypass cart validation.
   const quantities = new Map<string, number>();
   for (const item of parsedItems) {
-    const quantity = (quantities.get(item.product_id) ?? 0) + item.quantity;
+    const key = `${item.product_id}:${item.variant_option_id ?? ""}`;
+    const quantity = (quantities.get(key) ?? 0) + item.quantity;
     if (!Number.isFinite(quantity) || quantity > 1000000) fail("Jumlah total produk tidak valid.");
-    quantities.set(item.product_id, quantity);
+    quantities.set(key, quantity);
   }
-  const items = Array.from(quantities, ([product_id, quantity]) => ({ product_id, quantity }));
+  const items = Array.from(quantities, ([key, quantity]) => {
+    const [product_id, variant_option_id] = key.split(":");
+    return { product_id, quantity, variant_option_id: variant_option_id || null };
+  });
 
   const supabase = await createClient();
   const [
@@ -80,6 +90,7 @@ export async function checkoutAction(formData: FormData) {
     if (message.toLowerCase().includes("insufficient stock")) fail("Stok tidak cukup untuk salah satu produk. Periksa stok lalu coba lagi.");
     if (message.toLowerCase().includes("cash received")) fail("Uang diterima tidak boleh kurang dari total transaksi.");
     if (message.toLowerCase().includes("inactive") || message.toLowerCase().includes("product not found")) fail("Ada produk yang sudah nonaktif atau tidak tersedia.");
+    if (message.toLowerCase().includes("variant")) fail("Pilihan produk berubah atau tidak tersedia. Periksa kembali keranjang.");
     if (message.toLowerCase().includes("business access denied")) redirect("/onboarding");
     fail("Transaksi gagal disimpan. Pastikan migrasi checkout sudah diterapkan pada Supabase development.");
   }

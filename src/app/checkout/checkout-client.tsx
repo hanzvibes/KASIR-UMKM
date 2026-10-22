@@ -16,7 +16,9 @@ type Product = {
   stock_qty: number | null;
   track_stock: boolean;
 };
-type CartLine = { productId: string; quantity: number };
+type VariantOption = { id: string; name: string; price_delta: number };
+type VariantGroup = { product_id: string; name: string; required: boolean; options: VariantOption[] };
+type CartLine = { productId: string; variantOptionId: string | null; quantity: number };
 type Category = { id: string; name: string };
 type CatalogPreferences = { favorites: string[]; picks: Record<string, number> };
 
@@ -36,6 +38,7 @@ function subscribeOnline(callback: () => void) {
 export default function CheckoutClient({
   products,
   categories,
+  variants,
   businessId,
   qrisImageUrl,
   idempotencyKey,
@@ -46,6 +49,7 @@ export default function CheckoutClient({
 }: {
   products: Product[];
   categories: Category[];
+  variants: VariantGroup[];
   businessId: string;
   qrisImageUrl: string | null;
   idempotencyKey: string;
@@ -55,6 +59,7 @@ export default function CheckoutClient({
   dataError?: boolean;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [variantProductId, setVariantProductId] = useState<string | null>(null);
   const [activeIdempotencyKey, setActiveIdempotencyKey] = useState(idempotencyKey);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
@@ -76,6 +81,9 @@ export default function CheckoutClient({
   const offlineProductsKey = `kasir-umkm:offline-products-v1:${businessId}`;
 
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const variantByProductId = useMemo(() => new Map(variants.map((variant) => [variant.product_id, variant])), [variants]);
+  const optionById = useMemo(() => new Map(variants.flatMap((group) => group.options.map((option) => [option.id, option] as const))), [variants]);
+  const cartLineKey = (productId: string, optionId: string | null) => `${productId}:${optionId ?? ""}`;
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("id-ID");
     return products.filter((product) => {
@@ -87,7 +95,8 @@ export default function CheckoutClient({
 
   const subtotal = cart.reduce((sum, line) => {
     const product = productById.get(line.productId);
-    return sum + Math.round(Number(product?.price ?? 0) * line.quantity);
+    const option = line.variantOptionId ? optionById.get(line.variantOptionId) : null;
+    return sum + Math.round((Number(product?.price ?? 0) + Number(option?.price_delta ?? 0)) * line.quantity);
   }, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const discountAmount = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) ? Number(discount) : 0;
@@ -136,14 +145,18 @@ export default function CheckoutClient({
       if (!raw) return;
       const draft = JSON.parse(raw) as { items?: unknown; idempotencyKey?: unknown; paymentMethod?: unknown; cashReceived?: unknown };
       if (Array.isArray(draft.items)) {
-        const restored = draft.items.filter((item): item is CartLine =>
-          !!item && typeof item === "object" && "productId" in item && "quantity" in item
-          && typeof item.productId === "string" && productById.has(item.productId)
-          && typeof item.quantity === "number" && Number.isFinite(item.quantity)
-          && item.quantity > 0 && item.quantity <= 1_000_000
-          && (!productById.get(item.productId)?.track_stock || (productById.get(item.productId)?.stock_qty !== null
-            && item.quantity <= Number(productById.get(item.productId)?.stock_qty ?? 0)))
-        );
+        const restored = draft.items.flatMap((value): CartLine[] => {
+          if (!value || typeof value !== "object" || !("productId" in value) || !("quantity" in value)
+            || typeof value.productId !== "string" || typeof value.quantity !== "number" || !Number.isFinite(value.quantity)
+            || value.quantity <= 0 || value.quantity > 1_000_000) return [];
+          const product = productById.get(value.productId);
+          if (!product) return [];
+          const optionId = "variantOptionId" in value && typeof value.variantOptionId === "string" ? value.variantOptionId : null;
+          const group = variantByProductId.get(product.id);
+          if (group?.required && !optionId) return [];
+          if (optionId && !group?.options.some((option) => option.id === optionId)) return [];
+          return [{ productId: product.id, variantOptionId: optionId, quantity: value.quantity }];
+        });
         setCart(restored);
         setDraftRestored(restored.length > 0);
         if (typeof draft.idempotencyKey === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft.idempotencyKey)) {
@@ -157,7 +170,7 @@ export default function CheckoutClient({
     } finally {
       setDraftReady(true);
     }
-  }, [clearDraft, draftKey, idempotencyKey, legacyDraftKey, productById, successMarkerKey, successSaleId]);
+  }, [clearDraft, draftKey, idempotencyKey, legacyDraftKey, productById, successMarkerKey, successSaleId, variantByProductId]);
 
   useEffect(() => {
     try {
@@ -217,9 +230,12 @@ export default function CheckoutClient({
   }, [catalogPreferences, preferencesKey, preferencesReady]);
 
   useEffect(() => {
-    if (!cartOpen) return;
+    if (!cartOpen && !variantProductId) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCartOpen(false);
+      if (event.key === "Escape") {
+        setCartOpen(false);
+        setVariantProductId(null);
+      }
     };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -228,26 +244,39 @@ export default function CheckoutClient({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [cartOpen]);
+  }, [cartOpen, variantProductId]);
 
   function addProduct(product: Product) {
-    const currentQuantity = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
+    const group = variantByProductId.get(product.id);
+    if (group?.options.length) {
+      setVariantProductId(product.id);
+      return;
+    }
+    addCartLine(product, null);
+  }
+
+  function addCartLine(product: Product, variantOptionId: string | null) {
+    const currentQuantity = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);
     if (product.track_stock && (product.stock_qty ?? 0) < currentQuantity + 1) return;
     setCatalogPreferences((current) => ({
       ...current,
       picks: { ...current.picks, [product.id]: Math.min((current.picks[product.id] ?? 0) + 1, 10_000) },
     }));
     setCart((current) => {
-      const existing = current.find((line) => line.productId === product.id);
+      const existing = current.find((line) => line.productId === product.id && line.variantOptionId === variantOptionId);
       if (existing) {
         const nextQuantity = existing.quantity + 1;
-        if (product.track_stock && product.stock_qty !== null && nextQuantity > product.stock_qty) return current;
-        return current.map((line) => line.productId === product.id ? { ...line, quantity: nextQuantity } : line);
+        return current.map((line) => line === existing ? { ...line, quantity: nextQuantity } : line);
       }
-      if (product.track_stock && (product.stock_qty ?? 0) < 1) return current;
-      return [...current, { productId: product.id, quantity: 1 }];
+      return [...current, { productId: product.id, variantOptionId, quantity: 1 }];
     });
     setCashReceived("");
+  }
+
+  function chooseVariant(optionId: string | null) {
+    const product = variantProductId ? productById.get(variantProductId) : null;
+    if (product) addCartLine(product, optionId);
+    setVariantProductId(null);
   }
 
   function toggleFavorite(productId: string) {
@@ -259,15 +288,17 @@ export default function CheckoutClient({
     }));
   }
 
-  function changeQuantity(productId: string, quantity: number) {
+  function changeQuantity(productId: string, variantOptionId: string | null, quantity: number) {
     const product = productById.get(productId);
+    const lineKey = cartLineKey(productId, variantOptionId);
     if (quantity <= 0) {
-      setCart((current) => current.filter((line) => line.productId !== productId));
+      setCart((current) => current.filter((line) => cartLineKey(line.productId, line.variantOptionId) !== lineKey));
       setCashReceived("");
       return;
     }
-    if (product?.track_stock && product.stock_qty !== null && quantity > product.stock_qty) return;
-    setCart((current) => current.map((line) => line.productId === productId ? { ...line, quantity } : line));
+    const otherQuantity = cart.filter((line) => line.productId === productId && line.variantOptionId !== variantOptionId).reduce((sum, line) => sum + line.quantity, 0);
+    if (product?.track_stock && product.stock_qty !== null && quantity + otherQuantity > product.stock_qty) return;
+    setCart((current) => current.map((line) => cartLineKey(line.productId, line.variantOptionId) === lineKey ? { ...line, quantity } : line));
     setCashReceived("");
   }
 
@@ -296,6 +327,7 @@ export default function CheckoutClient({
   const serializedItems = JSON.stringify(cart.map((line) => ({
     product_id: line.productId,
     quantity: line.quantity,
+    variant_option_id: line.variantOptionId,
   })));
 
   const cartContent = (
@@ -312,18 +344,22 @@ export default function CheckoutClient({
           {cart.map((line) => {
             const product = productById.get(line.productId);
             if (!product) return null;
+            const option = line.variantOptionId ? optionById.get(line.variantOptionId) : null;
+            const unitPrice = Number(product.price) + Number(option?.price_delta ?? 0);
+            const productQuantity = cart.filter((item) => item.productId === product.id).reduce((sum, item) => sum + item.quantity, 0);
+            const lineKey = cartLineKey(line.productId, line.variantOptionId);
             return (
-              <li key={line.productId} className="flex items-center gap-2 py-3">
+              <li key={lineKey} className="flex items-center gap-2 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{product.name}</p>
-                  <p className="mt-0.5 text-xs text-muted">{rupiah(Number(product.price))} / {product.unit}</p>
-                  <p className="mt-1 text-sm font-bold">{rupiah(Math.round(Number(product.price) * line.quantity))}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted">{option ? `${variantByProductId.get(product.id)?.name}: ${option.name} · ` : ""}{rupiah(unitPrice)} / {product.unit}</p>
+                  <p className="mt-1 text-sm font-bold">{rupiah(Math.round(unitPrice * line.quantity))}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button type="button" aria-label={`Kurangi ${product.name}`} onClick={() => changeQuantity(product.id, line.quantity - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas"><Minus size={14} /></button>
+                  <button type="button" aria-label={`Kurangi ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas"><Minus size={14} /></button>
                   <span className="w-6 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.quantity + 1)} disabled={product.track_stock && product.stock_qty !== null && line.quantity >= product.stock_qty} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas disabled:opacity-40"><Plus size={14} /></button>
-                  <button type="button" aria-label={`Hapus ${product.name}`} onClick={() => changeQuantity(product.id, 0)} className="grid h-9 w-8 place-items-center rounded-lg text-red-600 active:bg-red-50"><Trash2 size={15} /></button>
+                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity + 1)} disabled={product.track_stock && product.stock_qty !== null && productQuantity >= product.stock_qty} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas disabled:opacity-40"><Plus size={14} /></button>
+                  <button type="button" aria-label={`Hapus ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, 0)} className="grid h-9 w-8 place-items-center rounded-lg text-red-600 active:bg-red-50"><Trash2 size={15} /></button>
                 </div>
               </li>
             );
@@ -401,6 +437,21 @@ export default function CheckoutClient({
 
   return (
     <>
+      {variantProductId && variantByProductId.get(variantProductId) && productById.get(variantProductId) && (() => {
+        const product = productById.get(variantProductId)!;
+        const group = variantByProductId.get(variantProductId)!;
+        return <div className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProductId(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="variant-picker-title" className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:mx-auto sm:max-w-xl sm:rounded-3xl sm:p-6">
+            <div className="mb-4"><p className="text-xs font-bold uppercase tracking-wider text-brand">Pilihan produk</p><h2 id="variant-picker-title" className="mt-1 text-xl font-bold">{product.name}</h2><p className="mt-1 text-sm text-muted">Pilih {group.name.toLocaleLowerCase("id-ID")} untuk melanjutkan.</p></div>
+            <div className="space-y-2">{group.options.map((option) => {
+              const price = Number(product.price) + option.price_delta;
+              return <button key={option.id} type="button" onClick={() => chooseVariant(option.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left hover:border-brand hover:bg-brand-soft/30"><span className="font-semibold">{option.name}</span><span className="text-sm font-bold tabular-nums">{rupiah(price)}{option.price_delta !== 0 && <span className="ml-1 text-xs font-normal text-muted">({option.price_delta > 0 ? "+" : "−"}{rupiah(Math.abs(option.price_delta))})</span>}</span></button>;
+            })}</div>
+            {!group.required && <button type="button" onClick={() => chooseVariant(null)} className="mt-2 min-h-12 w-full rounded-xl border border-dashed border-line px-4 text-sm font-semibold text-muted">Tanpa {group.name.toLocaleLowerCase("id-ID")} · {rupiah(Number(product.price))}</button>}
+            <button type="button" onClick={() => setVariantProductId(null)} className="mt-4 min-h-11 w-full rounded-xl bg-canvas text-sm font-semibold text-muted">Batal</button>
+          </section>
+        </div>;
+      })()}
       {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang sebelumnya dipulihkan. Periksa kembali jumlah barang dan stok sebelum menyimpan.</p>}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)]">
         <section className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
@@ -462,7 +513,8 @@ export default function CheckoutClient({
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
               {filteredProducts.map((product) => {
                 const outOfStock = product.track_stock && (product.stock_qty ?? 0) < 1;
-                const quantityInCart = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
+                const quantityInCart = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);
+                const productVariant = variantByProductId.get(product.id);
                 return (
                   <article key={product.id} className={`relative flex min-h-32 flex-col rounded-xl border border-line bg-white transition hover:border-brand ${outOfStock ? "opacity-50" : "hover:bg-brand-soft/30"}`}>
                     <button type="button" disabled={outOfStock} onClick={() => addProduct(product)} aria-label={`Tambah ${product.name} ke keranjang`}
@@ -470,7 +522,8 @@ export default function CheckoutClient({
                       {quantityInCart > 0 && <span className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{quantityInCart}</span>}
                       <span className="line-clamp-2 text-sm font-semibold leading-5">{product.name}</span>
                       <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
-                      <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{rupiah(Number(product.price))}</span>
+                      <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{productVariant?.options.length ? `Mulai ${rupiah(Math.min(...productVariant.options.map((option) => Number(product.price) + option.price_delta)))}` : rupiah(Number(product.price))}</span>
+                      {productVariant?.options.length ? <span className="mt-1 text-[11px] text-muted">Pilih {productVariant.name.toLocaleLowerCase("id-ID")}</span> : null}
                       {outOfStock ? <span className="mt-1 text-[11px] font-semibold text-red-600">Stok habis</span> : product.track_stock && <span className="mt-1 text-[11px] text-muted">Stok {product.stock_qty ?? 0}</span>}
                     </button>
                     <button type="button" aria-label={`${catalogPreferences.favorites.includes(product.id) ? "Hapus dari" : "Tambah ke"} favorit ${product.name}`} aria-pressed={catalogPreferences.favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)} className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-full text-amber-600 hover:bg-amber-50">

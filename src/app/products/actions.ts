@@ -191,6 +191,7 @@ export async function saveProductVariants(formData: FormData) {
   });
   if (error) {
     if (error.message.toLowerCase().includes("product not found")) fail("Produk tidak ditemukan atau sudah diarsipkan.");
+    if (error.message.toLowerCase().includes("price adjustment")) fail("Selisih harga tidak boleh membuat harga pilihan kurang dari nol.");
     if (error.code === "PGRST202" || error.code === "42883") fail("Fungsi varian belum tersedia. Terapkan migrasi Supabase terbaru.");
     fail("Varian gagal disimpan. Periksa pilihan dan coba lagi.");
   }

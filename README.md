@@ -4,7 +4,7 @@ A mobile-first point-of-sale app for Indonesian small businesses. Built with Nex
 
 ## Current milestone
 
-Current implementation includes tenant-scoped product and category management, shifts, cash movements, atomic checkout with stock validation, discounts and idempotency, receipts, transaction history, expenses, monthly profit reporting, staff invitations, settings, and PWA shell behavior. `202610220006_pos_operations.sql` extends the existing `kasir_*` schema without deleting legacy tables or data. It has not been applied to the connected Supabase project; review and apply migrations deliberately to the intended development project before using the new database features.
+Current implementation includes tenant-scoped product and category management, optional product variants, shifts, cash movements, atomic checkout with server-priced variants, stock validation and idempotency, receipts, transaction history, expenses, day/week/month profit reporting, staff invitations, settings, and PWA shell behavior. POS migrations `202610220006` through `202610220009` have been applied to the connected Supabase project. Apply the numbered migrations in order when setting up another environment; they preserve the legacy tables and data.
 
 ## Requirements
 

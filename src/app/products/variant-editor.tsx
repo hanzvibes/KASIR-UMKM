@@ -7,7 +7,7 @@ import { saveProductVariants } from "./actions";
 type VariantOption = { name: string; price_delta: number };
 type VariantGroup = { name: string; required: boolean; options: VariantOption[] } | null;
 
-export default function VariantEditor({ productId, initial }: { productId: string; initial: VariantGroup }) {
+export default function VariantEditor({ productId, basePrice, initial }: { productId: string; basePrice: number; initial: VariantGroup }) {
   const [groupName, setGroupName] = useState(initial?.name ?? "Ukuran");
   const [required, setRequired] = useState(initial?.required ?? true);
   const [options, setOptions] = useState<VariantOption[]>(initial?.options ?? []);
@@ -35,7 +35,7 @@ export default function VariantEditor({ productId, initial }: { productId: strin
             <input value={option.name} onChange={(event) => updateOption(index, "name", event.target.value)} maxLength={80} placeholder="Contoh: Besar" className="min-w-0 rounded-lg border border-line px-3 py-2 text-sm font-normal" />
           </label>
           <label className="grid gap-1 text-xs font-medium">Tambah harga (Rp)
-            <input type="number" step="1" value={option.price_delta} onChange={(event) => updateOption(index, "price_delta", event.target.value)} className="min-w-0 rounded-lg border border-line px-3 py-2 text-sm font-normal" />
+            <input type="number" min={-basePrice} step="1" value={option.price_delta} onChange={(event) => updateOption(index, "price_delta", event.target.value)} className="min-w-0 rounded-lg border border-line px-3 py-2 text-sm font-normal" />
           </label>
           <button type="button" aria-label={`Hapus pilihan ${option.name || index + 1}`} onClick={() => setOptions((current) => current.filter((_, optionIndex) => optionIndex !== index))} className="grid h-10 w-10 place-items-center rounded-lg border border-red-200 text-red-700"><Trash2 size={16} /></button>
         </div>)}

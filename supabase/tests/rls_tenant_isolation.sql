@@ -1,6 +1,6 @@
 begin;
 
-select plan(40);
+select plan(46);
 
 -- Fixtures are rolled back so this test can run repeatedly against a local database.
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
@@ -64,7 +64,8 @@ values
 insert into public.kasir_products (id, business_id, category_id, name, price, track_stock, stock_qty)
 values
   ('a3000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000001', 'Tenant A product', 1000, true, 10),
-  ('b3000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-000000000002', 'b2000000-0000-4000-8000-000000000002', 'Tenant B product', 2000, true, 10);
+  ('b3000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-000000000002', 'b2000000-0000-4000-8000-000000000002', 'Tenant B product', 2000, true, 10),
+  ('aa300000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000001', 'Variant drink', 4000, true, 5);
 
 insert into public.kasir_sales (id, business_id, created_by, total_amount, payment_method, idempotency_key)
 values
@@ -101,6 +102,11 @@ insert into public.kasir_product_variant_groups(id,business_id,product_id,name) 
 insert into public.kasir_product_variant_options(id,business_id,group_id,name) values
  ('a9000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','a8000000-0000-4000-8000-000000000001','Besar'),
  ('b9000000-0000-4000-8000-000000000002','b1000000-0000-4000-8000-000000000002','b8000000-0000-4000-8000-000000000002','Besar');
+insert into public.kasir_product_variant_groups(id,business_id,product_id,name,required) values
+ ('aa800000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','aa300000-0000-4000-8000-000000000001','Ukuran',true);
+insert into public.kasir_product_variant_options(id,business_id,group_id,name,price_delta) values
+ ('aa900000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','aa800000-0000-4000-8000-000000000001','Reguler',0),
+ ('aa900000-0000-4000-8000-000000000002','a1000000-0000-4000-8000-000000000001','aa800000-0000-4000-8000-000000000001','Besar',1500);
 insert into public.kasir_audit_logs(business_id,action,entity,details) values
  ('a1000000-0000-4000-8000-000000000001','test','product','{}'),
  ('b1000000-0000-4000-8000-000000000002','test','product','{}');
@@ -212,6 +218,21 @@ begin
 end $$;
 select is((public.kasir_create_sale('a1000000-0000-4000-8000-000000000001','[{"product_id":"a3000000-0000-4000-8000-000000000001","quantity":9}]'::jsonb,'cash','aa000000-0000-4000-8000-000000000002',9000,0)->>'duplicate')::boolean,true,'checkout retry with same key returns original sale');
 select is((select total_amount from public.kasir_sales where idempotency_key='aa000000-0000-4000-8000-000000000002'),1000::bigint,'checkout computes total from database product price');
+select throws_ok(
+ $$select public.kasir_create_sale('a1000000-0000-4000-8000-000000000001','[{"product_id":"aa300000-0000-4000-8000-000000000001","quantity":1}]'::jsonb,'qris','aa000000-0000-4000-8000-000000000004',null,0)$$,
+ '22023', null, 'checkout requires a choice for products with required variants'
+);
+select throws_ok(
+ $$select public.kasir_create_sale('a1000000-0000-4000-8000-000000000001','[{"product_id":"aa300000-0000-4000-8000-000000000001","quantity":1,"variant_option_id":"b9000000-0000-4000-8000-000000000002"}]'::jsonb,'qris','aa000000-0000-4000-8000-000000000006',null,0)$$,
+ '22023', null, 'checkout rejects a variant option from another tenant'
+);
+select lives_ok(
+ $$select public.kasir_create_sale('a1000000-0000-4000-8000-000000000001','[{"product_id":"aa300000-0000-4000-8000-000000000001","quantity":2,"variant_option_id":"aa900000-0000-4000-8000-000000000002"}]'::jsonb,'qris','aa000000-0000-4000-8000-000000000005',null,0)$$,
+ 'checkout accepts a valid variant option'
+);
+select is((select total_amount from public.kasir_sales where idempotency_key='aa000000-0000-4000-8000-000000000005'),11000::bigint,'checkout computes variant price from its saved delta');
+select is((select unit_price from public.kasir_sale_items where sale_id=(select id from public.kasir_sales where idempotency_key='aa000000-0000-4000-8000-000000000005')),5500::bigint,'checkout snapshots the final unit price');
+select is((select stock_qty from public.kasir_products where id='aa300000-0000-4000-8000-000000000001'),3::numeric,'checkout decrements stock for the selected variant');
 do $$ begin
  perform public.kasir_close_shift((select id from public.kasir_shifts where cashier_id='a0000000-0000-4000-8000-000000000001' and status='open'),2300,null);
 end $$;
