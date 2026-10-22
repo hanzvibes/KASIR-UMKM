@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
@@ -10,14 +12,48 @@ const navItems = [
   { label: "Laporan", icon: BarChart3 },
 ];
 
-const stats = [
-  { label: "Penjualan hari ini", value: "Rp0", detail: "Belum ada transaksi", icon: CircleDollarSign },
-  { label: "Transaksi", value: "0", detail: "Hari ini", icon: ReceiptText },
-  { label: "Estimasi laba kotor", value: "Rp0", detail: "Menunggu data penjualan", icon: ArrowUpRight },
-  { label: "Pengeluaran", value: "Rp0", detail: "Hari ini", icon: ArrowDownRight },
-];
+const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
-export default function HomePage() {
+function jakartaToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) redirect("/login");
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+  if (membershipError || !membership) redirect("/onboarding");
+
+  const today = jakartaToday();
+  const start = new Date(`${today}T00:00:00+07:00`);
+  const next = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const from = start.toISOString();
+  const to = next.toISOString();
+  const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }, { data: recentSales }] = await Promise.all([
+    supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
+      .eq("business_id", membership.business_id).gte("created_at", from).lt("created_at", to),
+    supabase.from("kasir_expenses").select("amount, expense_date")
+      .eq("business_id", membership.business_id).eq("expense_date", today),
+    supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
+      .eq("business_id", membership.business_id).order("created_at", { ascending: false }).limit(5),
+  ]);
+
+  const saleList = sales ?? [];
+  const expenseList = expenses ?? [];
+  const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
+  const expenseTotal = expenseList.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const stats = [
+    { label: "Penjualan hari ini", value: salesError ? "—" : money(revenue), detail: salesError ? "Data belum bisa dimuat" : saleList.length ? `${saleList.length} transaksi tercatat` : "Belum ada transaksi", icon: CircleDollarSign },
+    { label: "Transaksi", value: salesError ? "—" : String(saleList.length), detail: "Hari ini", icon: ReceiptText },
+    { label: "Estimasi laba kotor", value: "—", detail: "HPP belum tersedia pada data transaksi", icon: ArrowUpRight },
+    { label: "Pengeluaran", value: expensesError ? "—" : money(expenseTotal), detail: expensesError ? "Data belum bisa dimuat" : `${expenseList.length} catatan hari ini`, icon: ArrowDownRight },
+  ];
+  const todayLabel = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date());
   return (
     <main className="min-h-screen md:flex">
       <aside className="hidden w-64 shrink-0 border-r border-line bg-white p-5 md:flex md:flex-col">
@@ -58,7 +94,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-7 md:pb-8">
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="mb-1 text-sm text-muted">Kamis, 22 Oktober 2026</p>
+              <p className="mb-1 text-sm text-muted capitalize">{todayLabel}</p>
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h2>
               <p className="mt-2 text-sm text-muted">Pantau penjualan dan aktivitas usahamu.</p>
             </div>
@@ -86,13 +122,7 @@ export default function HomePage() {
                 <div><h3 className="font-semibold">Aktivitas penjualan</h3><p className="mt-1 text-sm text-muted">Ringkasan transaksi terbaru</p></div>
                 <span className="rounded-lg bg-canvas p-2 text-muted"><ClipboardList size={18} /></span>
               </div>
-              <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center">
-                <div className="max-w-xs">
-                  <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><BarChart3 size={23} /></span>
-                  <p className="font-semibold">Belum ada data penjualan</p>
-                  <p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p>
-                </div>
-              </div>
+              {salesError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Data penjualan belum bisa dimuat. Coba muat ulang halaman.</p> : (recentSales ?? []).length === 0 ? <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center"><div className="max-w-xs"><span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><BarChart3 size={23} /></span><p className="font-semibold">Belum ada data penjualan</p><p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p></div></div> : <div className="divide-y divide-line">{recentSales?.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={17} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span><strong className="shrink-0 text-sm">{money(Number(sale.total_amount))}</strong></Link>)}</div>}
             </article>
 
             <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
