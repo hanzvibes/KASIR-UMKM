@@ -44,7 +44,7 @@ create table public.products (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  foreign key (category_id, business_id) references public.categories(id, business_id) on delete set null,
+  foreign key (category_id, business_id) references public.categories(id, business_id) on delete restrict,
   unique (id, business_id)
 );
 
@@ -125,11 +125,11 @@ create policy "Owners can update their businesses"
 on public.businesses for update to authenticated
 using (exists (
   select 1 from public.business_members bm
-  where bm.business_id = id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = businesses.id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ))
 with check (exists (
   select 1 from public.business_members bm
-  where bm.business_id = id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = businesses.id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 
 create policy "Members can read their membership"
@@ -143,23 +143,23 @@ create policy "Owners can insert categories"
 on public.categories for insert to authenticated
 with check (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = categories.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 create policy "Owners can update categories"
 on public.categories for update to authenticated
 using (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = categories.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ))
 with check (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = categories.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 create policy "Owners can delete categories"
 on public.categories for delete to authenticated
 using (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = categories.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 
 create policy "Members can read products"
@@ -169,17 +169,17 @@ create policy "Owners can insert products"
 on public.products for insert to authenticated
 with check (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = products.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 create policy "Owners can update products"
 on public.products for update to authenticated
 using (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = products.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ))
 with check (exists (
   select 1 from public.business_members bm
-  where bm.business_id = business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
+  where bm.business_id = products.business_id and bm.user_id = (select auth.uid()) and bm.role = 'owner'
 ));
 
 create policy "Members can read entitlements"
