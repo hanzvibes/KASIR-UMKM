@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { redirect } from "next/navigation";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +38,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     <main className="min-h-screen bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/dashboard" aria-label="Buka ringkasan usaha" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
+          <Link href="/dashboard" aria-label="Buka ringkasan usaha" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><LayoutDashboard size={18} /></Link>
           <div><h1 className="text-lg font-bold">Kasir</h1><p className="text-sm text-muted">Pilih produk, cek keranjang, lalu simpan transaksi.</p></div>
         </div>
       </header>
