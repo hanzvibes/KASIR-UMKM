@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2 } from "lucide-react";
 import { checkoutAction } from "./actions";
 
@@ -33,6 +34,7 @@ export default function CheckoutClient({
   errorMessage?: string;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [activeIdempotencyKey, setActiveIdempotencyKey] = useState(idempotencyKey);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [search, setSearch] = useState("");
@@ -56,6 +58,35 @@ export default function CheckoutClient({
   }, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const quickCashAmounts = [...new Set([subtotal, 50_000, 100_000].filter((amount) => amount >= subtotal && amount > 0))];
+
+  useEffect(() => {
+    const draftKey = "kasir-umkm:checkout-draft-v1";
+    if (!errorMessage) {
+      sessionStorage.removeItem(draftKey);
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { items?: unknown; idempotencyKey?: unknown };
+      if (Array.isArray(draft.items)) {
+        const restored = draft.items.filter((item): item is CartLine =>
+          !!item && typeof item === "object" && "productId" in item && "quantity" in item
+          && typeof item.productId === "string" && productById.has(item.productId)
+          && typeof item.quantity === "number" && Number.isFinite(item.quantity)
+          && item.quantity > 0 && item.quantity <= 1_000_000
+        );
+        setCart(restored);
+        if (typeof draft.idempotencyKey === "string" && draft.idempotencyKey.length <= 100) {
+          setActiveIdempotencyKey(draft.idempotencyKey);
+        }
+      }
+    } catch {
+      // Ignore a malformed local draft; server validation remains authoritative.
+    } finally {
+      sessionStorage.removeItem(draftKey);
+    }
+  }, [errorMessage, idempotencyKey, productById]);
 
   function addProduct(product: Product) {
     setCart((current) => {
@@ -87,6 +118,14 @@ export default function CheckoutClient({
     if (submitting || cart.length === 0) {
       event.preventDefault();
       return;
+    }
+    try {
+      sessionStorage.setItem("kasir-umkm:checkout-draft-v1", JSON.stringify({
+        items: cart,
+        idempotencyKey: activeIdempotencyKey,
+      }));
+    } catch {
+      // Checkout still proceeds if the browser blocks session storage.
     }
     setSubmitting(true);
   }
@@ -135,7 +174,7 @@ export default function CheckoutClient({
         </div>
         <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
           <input type="hidden" name="items" value={serializedItems} />
-          <input type="hidden" name="idempotency_key" value={idempotencyKey} />
+          <input type="hidden" name="idempotency_key" value={activeIdempotencyKey} />
           <div className="grid grid-cols-3 gap-2" aria-label="Metode pembayaran">
             {[
               { value: "cash", label: "Tunai" },
@@ -231,7 +270,7 @@ export default function CheckoutClient({
               <ShoppingCart size={27} className="mx-auto text-muted" />
               <p className="mt-3 font-semibold">Katalog masih kosong</p>
               <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-muted">Tambahkan produk satu kali. Setelah itu, kasir cukup ketuk barang untuk memasukkannya ke transaksi.</p>
-              <a href="/products" className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">Tambah produk</a>
+              <Link href="/products" className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">Tambah produk</Link>
             </div>
           ) : filteredProducts.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Produk tidak ditemukan. Coba kata kunci atau kategori lain.</p>
