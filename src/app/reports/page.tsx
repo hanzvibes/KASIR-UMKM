@@ -41,8 +41,8 @@ export default async function ReportsPage() {
   const expenseList = expenses ?? [];
   const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
   const expenseTotal = expenseList.reduce((sum, expense) => sum + Number(expense.amount), 0);
-  const salesErrorMessage = salesError ? "Data penjualan belum tersedia. Pastikan tabel kasir_sales tersedia di Supabase development." : null;
-  const expensesErrorMessage = expensesError ? "Data pengeluaran belum tersedia. Pastikan tabel kasir_expenses tersedia di Supabase development." : null;
+  const salesErrorMessage = salesError ? "Data penjualan gagal dimuat." : null;
+  const expensesErrorMessage = expensesError ? "Data pengeluaran gagal dimuat." : null;
 
   return (
     <main className="min-h-screen bg-canvas">
