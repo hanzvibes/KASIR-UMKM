@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import PrintReceiptButton from "./print-button";
 
 type Params = Promise<{ id: string }>;
 const money = (value: number | string | null) =>
@@ -28,9 +29,9 @@ export default async function SaleReceiptPage({ params }: { params: Params }) {
   return (
     <main className="min-h-screen bg-canvas p-4 sm:p-8">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-5 flex items-center justify-between print:hidden">
+        <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
           <Link href="/checkout" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={17} /> Kembali ke kasir</Link>
-          <button type="button" onClick="window.print()" className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold"><Printer size={16} /> Cetak struk</button>
+          <PrintReceiptButton />
         </div>
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-8 print:border-0 print:shadow-none">
           <div className="text-center">
@@ -42,7 +43,7 @@ export default async function SaleReceiptPage({ params }: { params: Params }) {
           </div>
           <div className="my-6 border-y border-dashed border-line py-4 text-sm">
             <div className="flex justify-between gap-4"><span className="text-muted">Pembayaran</span><span className="font-medium">{paymentLabel}</span></div>
-            <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Status</span><span className="font-semibold text-green-700">{sale.status === "completed" ? "Lunas" : "Dibatalkan"}</span></div>
+            <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Status</span><span className={`font-semibold ${sale.status === "completed" ? "text-green-700" : "text-muted"}`}>{sale.status === "completed" ? "Lunas" : "Dibatalkan"}</span></div>
           </div>
           <div className="space-y-4">
             {(items ?? []).map((item) => <div key={item.id} className="flex justify-between gap-4 text-sm">
