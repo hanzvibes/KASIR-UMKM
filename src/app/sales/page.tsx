@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ReceiptText } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 
 const money = (value: number | string | null) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value ?? 0));
@@ -29,7 +29,7 @@ export default async function SalesHistoryPage() {
           <div><h1 className="text-lg font-bold">Riwayat transaksi</h1><p className="text-sm text-muted">100 transaksi terbaru.</p></div>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl p-4 sm:p-7">
+      <div className="mx-auto max-w-5xl p-4 pb-24 sm:p-7">
         {error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">Riwayat belum bisa dimuat. Pastikan migrasi checkout sudah diterapkan di Supabase development.</p>}
         {!error && (!sales || sales.length === 0) ? <div className="rounded-2xl border border-dashed border-line bg-white p-10 text-center"><ReceiptText size={28} className="mx-auto text-muted" /><h2 className="mt-3 font-semibold">Belum ada transaksi</h2><p className="mt-1 text-sm text-muted">Transaksi yang disimpan akan muncul di sini.</p><Link href="/checkout" className="mt-5 inline-flex rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">Buka kasir</Link></div> : (
           <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
@@ -41,6 +41,7 @@ export default async function SalesHistoryPage() {
           </div>
         )}
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
