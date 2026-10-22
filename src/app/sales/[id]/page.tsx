@@ -15,15 +15,19 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   const { id } = await params;
   const query = await searchParams;
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: sale, error },
+    { data: memberships, error: membershipError },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from("kasir_sales")
+      .select("id, business_id, payment_method, total_amount, cash_received, change_due, created_at, status, void_reason")
+      .eq("id", id).maybeSingle(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: sale, error } = await supabase.from("kasir_sales")
-    .select("id, business_id, payment_method, total_amount, cash_received, change_due, created_at, status, void_reason")
-    .eq("id", id).maybeSingle();
   if (error || !sale) notFound();
-
-  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
   const membership = memberships?.[0];
   if (membershipError || !membership || membership.business_id !== sale.business_id) notFound();
   const { data: items, error: itemsError } = await supabase.from("kasir_sale_items")
