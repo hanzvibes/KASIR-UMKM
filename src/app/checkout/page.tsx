@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 import CheckoutClient from "./checkout-client";
 
 type SearchParams = Promise<{ error?: string }>;
@@ -37,10 +37,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
           <div><h1 className="text-lg font-bold">Kasir</h1><p className="text-sm text-muted">Pilih produk, cek keranjang, lalu simpan transaksi.</p></div>
         </div>
       </header>
-      <div className="mx-auto max-w-7xl space-y-5 p-4 pb-10 sm:p-7">
+      <div className="mx-auto max-w-7xl space-y-5 p-4 pb-24 sm:p-7">
         {(error || categoriesError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori belum bisa dimuat. Pastikan migrasi awal sudah diterapkan di Supabase development.</p>}
         <CheckoutClient products={products ?? []} categories={categories ?? []} idempotencyKey={randomUUID()} errorMessage={params.error} />
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
