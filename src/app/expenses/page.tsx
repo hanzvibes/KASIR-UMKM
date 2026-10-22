@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { redirect } from "next/navigation";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
+import { createClient } from "@/lib/supabase/server";
 import { createExpense } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
