@@ -12,11 +12,11 @@ export default async function SalesHistoryPage() {
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
-  const { data: sales, error } = await supabase.from("sales")
-    .select("id, receipt_no, payment_method, total, status, created_at")
+  const { data: sales, error } = await supabase.from("kasir_sales")
+    .select("id, payment_method, total_amount, created_at")
     .eq("business_id", membership.business_id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -35,8 +35,8 @@ export default async function SalesHistoryPage() {
           <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
             {(sales ?? []).map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} className="flex items-center gap-3 border-b border-line p-4 last:border-b-0 hover:bg-canvas sm:px-5">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={18} /></span>
-              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.receipt_no}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span>
-              <span className="text-right"><span className="block text-sm font-bold">{money(sale.total)}</span><span className={`mt-1 block text-xs ${sale.status === "completed" ? "text-green-700" : "text-muted"}`}>{sale.status === "completed" ? "Lunas" : "Dibatalkan"}</span></span>
+              <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8)}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span>
+              <span className="text-right"><span className="block text-sm font-bold">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs ${"text-green-700"}`}>{"Tersimpan"}</span></span>
             </Link>)}
           </div>
         )}

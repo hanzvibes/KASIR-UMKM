@@ -18,7 +18,7 @@ export function OnboardingForm() {
       const supabase = createClient();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Sesi login tidak ditemukan. Silakan masuk lagi.");
-      const { error } = await supabase.rpc("create_business", { business_name: name.trim() });
+      const { error } = await supabase.rpc("kasir_create_business", { business_name: name.trim() });
       if (error) throw error;
       router.replace("/");
       router.refresh();
@@ -38,7 +38,7 @@ export function OnboardingForm() {
       } else if (code === "42501" || code === "PGRST301") {
         setErrorMessage("Akses ditolak oleh database. Periksa kebijakan akses Supabase untuk pembuatan usaha.");
       } else if (code === "PGRST202" || code === "42883") {
-        setErrorMessage("Fungsi create_business belum tersedia di database. Terapkan migrasi Supabase terbaru lalu coba lagi.");
+        setErrorMessage("Fungsi kasir_create_business belum tersedia di database. Terapkan migrasi Supabase terbaru lalu coba lagi.");
       } else if (details) {
         setErrorMessage(`Usaha belum bisa dibuat: ${details}`);
       } else {

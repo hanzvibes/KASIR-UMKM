@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/login") {
-    const { data: membership } = await supabase.from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
     const destination = request.nextUrl.clone();
     destination.pathname = membership ? "/" : "/onboarding";
     destination.search = "";
@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname !== "/onboarding") {
-    const { data: membership } = await supabase.from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
     if (!membership) {
       const onboardingUrl = request.nextUrl.clone();
       onboardingUrl.pathname = "/onboarding";
@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/onboarding") {
-    const { data: membership } = await supabase.from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
     if (membership) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = "/";

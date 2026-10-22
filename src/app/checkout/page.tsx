@@ -14,16 +14,16 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
   const [{ data: products, error }, { data: categories, error: categoriesError }] = await Promise.all([
-    supabase.from("products")
+    supabase.from("kasir_products")
       .select("id, name, sku, category_id, unit, price, stock_qty, track_stock")
       .eq("business_id", membership.business_id)
       .eq("is_active", true)
       .order("name"),
-    supabase.from("categories")
+    supabase.from("kasir_categories")
       .select("id, name")
       .eq("business_id", membership.business_id)
       .order("name"),

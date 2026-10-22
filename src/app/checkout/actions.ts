@@ -39,10 +39,10 @@ export async function checkoutAction(formData: FormData) {
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
-  const { data, error } = await supabase.rpc("create_sale", {
+  const { data, error } = await supabase.rpc("kasir_create_sale", {
     p_business_id: membership.business_id,
     p_items: items,
     p_payment_method: paymentMethod,

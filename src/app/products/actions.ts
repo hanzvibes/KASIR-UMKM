@@ -21,7 +21,7 @@ async function getBusinessContext() {
   if (authError || !user) redirect("/login");
 
   const { data: membership, error } = await supabase
-    .from("business_members")
+    .from("kasir_business_members")
     .select("business_id, role")
     .eq("user_id", user.id)
     .limit(1)
@@ -41,7 +41,7 @@ export async function createCategory(formData: FormData) {
   if (!name || name.length > 80) fail("Nama kategori wajib diisi (maksimal 80 karakter).");
 
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("categories").insert({ business_id: businessId, name });
+  const { error } = await supabase.from("kasir_categories").insert({ business_id: businessId, name });
   if (error) {
     if (error.code === "23505") fail("Kategori dengan nama itu sudah ada.");
     fail("Kategori gagal disimpan. Periksa koneksi dan coba lagi.");
@@ -56,7 +56,7 @@ export async function updateCategory(formData: FormData) {
   if (!id || !name || name.length > 80) fail("Nama kategori wajib diisi (maksimal 80 karakter).");
 
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("categories").update({ name }).eq("id", id).eq("business_id", businessId);
+  const { error } = await supabase.from("kasir_categories").update({ name }).eq("id", id).eq("business_id", businessId);
   if (error) {
     if (error.code === "23505") fail("Kategori dengan nama itu sudah ada.");
     fail("Kategori gagal diperbarui.");
@@ -70,7 +70,7 @@ export async function deleteCategory(formData: FormData) {
   if (!id) fail("Kategori tidak valid.");
 
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("categories").delete().eq("id", id).eq("business_id", businessId);
+  const { error } = await supabase.from("kasir_categories").delete().eq("id", id).eq("business_id", businessId);
   if (error) {
     if (error.code === "23503") fail("Kategori masih dipakai produk. Pindahkan produk ke kategori lain terlebih dahulu.");
     fail("Kategori gagal dihapus.");
@@ -108,7 +108,7 @@ function readProduct(formData: FormData) {
 export async function createProduct(formData: FormData) {
   const product = readProduct(formData);
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("products").insert({ ...product, business_id: businessId });
+  const { error } = await supabase.from("kasir_products").insert({ ...product, business_id: businessId });
   if (error) {
     if (error.code === "23505") fail("SKU tersebut sudah digunakan produk lain.");
     if (error.code === "23503") fail("Kategori yang dipilih tidak valid.");
@@ -123,7 +123,7 @@ export async function updateProduct(formData: FormData) {
   if (!id) fail("Produk tidak valid.");
   const product = readProduct(formData);
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("products").update(product).eq("id", id).eq("business_id", businessId);
+  const { error } = await supabase.from("kasir_products").update(product).eq("id", id).eq("business_id", businessId);
   if (error) {
     if (error.code === "23505") fail("SKU tersebut sudah digunakan produk lain.");
     if (error.code === "23503") fail("Kategori yang dipilih tidak valid.");
@@ -139,7 +139,7 @@ export async function setProductActive(formData: FormData) {
   if (!id) fail("Produk tidak valid.");
 
   const { supabase, businessId } = await getBusinessContext();
-  const { error } = await supabase.from("products").update({ is_active: active }).eq("id", id).eq("business_id", businessId);
+  const { error } = await supabase.from("kasir_products").update({ is_active: active }).eq("id", id).eq("business_id", businessId);
   if (error) fail("Status produk gagal diperbarui.");
   revalidatePath("/products");
   redirect(`/products?success=${active ? "product_activated" : "product_deactivated"}`);

@@ -32,11 +32,11 @@ export async function createExpense(formData: FormData) {
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
   if (membership.role !== "owner") redirect("/?error=owner_only");
 
-  const { error } = await supabase.from("expenses").insert({
+  const { error } = await supabase.from("kasir_expenses").insert({
     business_id: membership.business_id,
     category,
     description: description || null,

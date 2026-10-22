@@ -20,10 +20,10 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
-  const { data: expenses, error } = await supabase.from("expenses")
+  const { data: expenses, error } = await supabase.from("kasir_expenses")
     .select("id, category, description, amount, expense_date, created_at")
     .eq("business_id", membership.business_id).order("expense_date", { ascending: false }).order("created_at", { ascending: false }).limit(100);
   const canManage = membership.role === "owner";
