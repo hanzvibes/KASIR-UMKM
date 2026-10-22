@@ -17,14 +17,18 @@ function nonNegativeNumber(value: string) {
 
 async function getBusinessContext() {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: memberships, error },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: memberships, error } = await supabase.rpc("kasir_get_my_business");
   const membership = memberships?.[0];
 
   if (error || !membership) redirect("/onboarding");
-  if (membership.role !== "owner") redirect("/?error=owner_only");
+  if (membership.role !== "owner") redirect("/products?error=owner_only");
   return { supabase, businessId: membership.business_id };
 }
 
