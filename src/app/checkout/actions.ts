@@ -83,5 +83,6 @@ export async function checkoutAction(formData: FormData) {
   revalidatePath("/checkout");
   revalidatePath("/products");
   revalidatePath("/sales");
-  redirect(`/sales/${data.id}`);
+  // Keep the cashier on the selling screen so they can start the next order immediately.
+  redirect(`/checkout?success=${encodeURIComponent(data.id)}`);
 }

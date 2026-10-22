@@ -5,7 +5,7 @@ import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive } from "./actions";
 
-type SearchParams = Promise<{ error?: string; success?: string; search?: string }>;
+type SearchParams = Promise<{ error?: string; success?: string; search?: string; page?: string }>;
 
 const successMessages: Record<string, string> = {
   category_created: "Kategori berhasil ditambahkan.",
@@ -34,26 +34,34 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
 
+  const searchTerm = (params.search ?? "").trim().replace(/[^\p{L}\p{N} ._-]/gu, "").slice(0, 80);
+  const searchWords = searchTerm.split(/\s+/).filter((word) => word.length > 1).slice(0, 6);
+  if (searchWords.length === 0 && searchTerm) searchWords.push(searchTerm);
+  const parsedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isSafeInteger(parsedPage) && parsedPage > 0 ? Math.min(parsedPage, 10_000) : 1;
+  const pageSize = 30;
+  let productQuery = supabase.from("kasir_products").select("id, name, sku, category_id, unit, price, cost_price, stock_qty, track_stock, is_active")
+    .eq("business_id", membership.business_id);
+  if (searchWords.length > 0) productQuery = productQuery.or(searchWords.flatMap((word) => [`name.ilike.%${word}%`, `sku.ilike.%${word}%`]).join(","));
+
   const [{ data: categories, error: categoriesError }, { data: products, error: productsError }] = await Promise.all([
     supabase.from("kasir_categories").select("id, name").eq("business_id", membership.business_id).order("name"),
-    supabase.from("kasir_products").select("id, name, sku, category_id, unit, price, cost_price, stock_qty, track_stock, is_active")
-      .eq("business_id", membership.business_id).order("created_at", { ascending: false }),
+    productQuery.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize),
   ]);
 
   const categoryList = categories ?? [];
-  const productList = products ?? [];
+  const fetchedProducts = products ?? [];
+  const hasNextPage = fetchedProducts.length > pageSize;
+  const productList = fetchedProducts.slice(0, pageSize);
   const categoryNames = new Map(categoryList.map((category) => [category.id, category.name]));
-  const searchTerm = (params.search ?? "").trim();
-  const visibleProducts = searchTerm
-    ? productList.filter((product) => `${product.name} ${product.sku ?? ""} ${categoryNames.get(product.category_id ?? "") ?? ""}`.toLocaleLowerCase("id-ID").includes(searchTerm.toLocaleLowerCase("id-ID")))
-    : productList;
   const canManage = membership.role === "owner";
+  const pageHref = (nextPage: number) => `/products?${new URLSearchParams({ ...(searchTerm ? { search: searchTerm } : {}), page: String(nextPage) })}`;
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
+          <Link href="/checkout" prefetch={false} aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
           <div><h1 className="text-lg font-bold">Produk & kategori</h1><p className="text-sm text-muted">Kelola katalog barang dan harga jual.</p></div>
         </div>
       </header>
@@ -123,10 +131,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         </div>
 
         <section className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
-          <div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div className="flex items-center gap-3"><span className="rounded-lg bg-canvas p-2 text-muted"><Boxes size={18} /></span><div><h2 className="font-semibold">Daftar produk</h2><p className="mt-1 text-sm text-muted">{searchTerm ? `${visibleProducts.length} dari ${productList.length} produk` : `${productList.length} produk terdaftar`}</p></div></div><form action="/products" method="get" role="search" className="flex w-full gap-2 sm:max-w-sm"><input name="search" type="search" defaultValue={searchTerm} aria-label="Cari produk" placeholder="Cari nama, SKU, kategori…" className="min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm" /><button className="rounded-xl border border-line px-3 py-2.5 text-sm font-semibold hover:bg-canvas">Cari</button></form></div>
-          {productList.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">Belum ada produk</p><p className="mt-1 text-sm text-muted">Tambahkan produk lewat formulir di atas.</p></div> : visibleProducts.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">Produk tidak ditemukan</p><p className="mt-1 text-sm text-muted">Coba kata kunci lain atau kosongkan pencarian.</p><Link href="/products" className="mt-4 inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Hapus pencarian</Link></div> : (
+          <div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div className="flex items-center gap-3"><span className="rounded-lg bg-canvas p-2 text-muted"><Boxes size={18} /></span><div><h2 className="font-semibold">Daftar produk</h2><p className="mt-1 text-sm text-muted">{searchTerm ? `${productList.length} hasil di halaman ${page}` : `${productList.length} produk di halaman ${page}`}</p></div></div><form action="/products" method="get" role="search" className="flex w-full gap-2 sm:max-w-sm"><input name="search" type="search" defaultValue={searchTerm} aria-label="Cari produk" placeholder="Cari nama atau SKU…" className="min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm" /><button className="rounded-xl border border-line px-3 py-2.5 text-sm font-semibold hover:bg-canvas">Cari</button></form></div>
+          {productList.length === 0 && !searchTerm && page === 1 ? <div className="p-10 text-center"><p className="font-semibold">Belum ada produk</p><p className="mt-1 text-sm text-muted">Tambahkan produk lewat formulir di atas.</p></div> : productList.length === 0 ? <div className="p-10 text-center"><p className="font-semibold">{page > 1 && !searchTerm ? "Tidak ada produk di halaman ini" : "Produk tidak ditemukan"}</p><p className="mt-1 text-sm text-muted">Coba kata kunci lain atau kembali ke halaman sebelumnya.</p><div className="mt-4 flex justify-center gap-2">{page > 1 && <Link prefetch={false} href={pageHref(page - 1)} className="inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Sebelumnya</Link>}{searchTerm && <Link prefetch={false} href="/products" className="inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Hapus pencarian</Link>}</div></div> : (
             <div className="divide-y divide-line">
-              {visibleProducts.map((product) => (
+              {productList.map((product) => (
                 <details key={product.id} className="group p-4 sm:p-5">
                   <summary className="flex cursor-pointer list-none items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><PackagePlus size={18} /></span>
@@ -150,6 +158,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               ))}
             </div>
           )}
+          {productList.length > 0 && <nav aria-label="Halaman produk" className="flex items-center justify-between border-t border-line px-5 py-4 sm:px-6"><span className="text-sm text-muted">Halaman {page}</span><div className="flex gap-2">{page > 1 && <Link prefetch={false} href={pageHref(page - 1)} className="rounded-xl border border-line px-3 py-2 text-sm font-semibold hover:bg-canvas">Sebelumnya</Link>}{hasNextPage && <Link prefetch={false} href={pageHref(page + 1)} className="rounded-xl border border-line px-3 py-2 text-sm font-semibold hover:bg-canvas">Berikutnya</Link>}</div></nav>}
         </section>
       </div>
       <MobileBottomNav />

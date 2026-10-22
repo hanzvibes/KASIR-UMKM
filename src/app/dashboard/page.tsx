@@ -74,14 +74,14 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen md:flex">
       <aside className="hidden w-64 shrink-0 border-r border-line bg-white p-5 md:flex md:flex-col">
-        <Link href="/dashboard" className="mb-9 flex items-center gap-3">
+        <Link href="/dashboard" prefetch={false} className="mb-9 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={21} /></span>
           <span><strong className="block text-base">Kasir UMKM</strong><small className="text-muted">Teman usaha harian</small></span>
         </Link>
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted">Menu utama</p>
         <nav className="space-y-1">
           {navItems.map(({ label, icon: Icon, active }) => (
-            <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/dashboard" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+            <Link key={label} prefetch={false} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/dashboard" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={18} strokeWidth={1.8} />{label}
             </Link>
           ))}
@@ -111,7 +111,7 @@ export default async function HomePage() {
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h2>
               <p className="mt-2 text-sm text-muted">Pantau penjualan dan aktivitas usahamu.</p>
             </div>
-            <Link href="/checkout" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-[#196640]">
+            <Link href="/checkout" prefetch={false} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-[#196640]">
               <Plus size={17} /> Mulai transaksi
             </Link>
           </div>
@@ -135,7 +135,7 @@ export default async function HomePage() {
                 <div><h3 className="font-semibold">Aktivitas penjualan</h3><p className="mt-1 text-sm text-muted">Ringkasan transaksi terbaru</p></div>
                 <span className="rounded-lg bg-canvas p-2 text-muted"><ClipboardList size={18} /></span>
               </div>
-              {salesError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Data penjualan belum bisa dimuat. Coba muat ulang halaman.</p> : (recentSales ?? []).length === 0 ? <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center"><div className="max-w-xs"><span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><BarChart3 size={23} /></span><p className="font-semibold">Belum ada data penjualan</p><p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p></div></div> : <div className="divide-y divide-line">{recentSales?.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={17} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span><strong className="shrink-0 text-sm">{money(Number(sale.total_amount))}</strong></Link>)}</div>}
+              {salesError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Data penjualan belum bisa dimuat. Coba muat ulang halaman.</p> : (recentSales ?? []).length === 0 ? <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center"><div className="max-w-xs"><span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><BarChart3 size={23} /></span><p className="font-semibold">Belum ada data penjualan</p><p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p></div></div> : <div className="divide-y divide-line">{recentSales?.map((sale) => <Link key={sale.id} prefetch={false} href={`/sales/${sale.id}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={17} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya"}</span></span><strong className="shrink-0 text-sm">{money(Number(sale.total_amount))}</strong></Link>)}</div>}
             </article>
 
             <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
@@ -149,7 +149,7 @@ export default async function HomePage() {
                   { title: "Transaksi baru", desc: "Mulai melayani pelanggan", icon: CreditCard, href: "/checkout" },
                   { title: "Catat pengeluaran", desc: "Jaga biaya operasional tetap tercatat", icon: Wallet, href: "/expenses" },
                 ].map(({ title, desc, icon: Icon, href }) => (
-                  <Link key={title} href={href} className="flex items-center gap-3 rounded-xl border border-line p-3 transition hover:border-brand hover:bg-brand-soft/30 active:scale-[0.99]">
+                  <Link key={title} href={href} prefetch={false} className="flex items-center gap-3 rounded-xl border border-line p-3 transition hover:border-brand hover:bg-brand-soft/30 active:scale-[0.99]">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><Icon size={19} /></span>
                     <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-muted">{desc}</p></div>
                     <Plus size={16} className="shrink-0 text-muted" />

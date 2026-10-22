@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2 } from "lucide-react";
+import { Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
 import { checkoutAction } from "./actions";
 
 type Product = {
@@ -17,6 +17,7 @@ type Product = {
 };
 type CartLine = { productId: string; quantity: number };
 type Category = { id: string; name: string };
+type CatalogPreferences = { favorites: string[]; picks: Record<string, number> };
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
   style: "currency", currency: "IDR", maximumFractionDigits: 0,
@@ -25,14 +26,20 @@ const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
 export default function CheckoutClient({
   products,
   categories,
+  businessId,
   idempotencyKey,
   errorMessage,
+  clearDraft = false,
+  successSaleId,
   dataError = false,
 }: {
   products: Product[];
   categories: Category[];
+  businessId: string;
   idempotencyKey: string;
   errorMessage?: string;
+  clearDraft?: boolean;
+  successSaleId?: string;
   dataError?: boolean;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -43,6 +50,15 @@ export default function CheckoutClient({
   const [categoryId, setCategoryId] = useState("all");
   const [submitting, setSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const clearedSuccessDraft = useRef(false);
+  const [catalogPreferences, setCatalogPreferences] = useState<CatalogPreferences>({ favorites: [], picks: {} });
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const draftKey = `kasir-umkm:checkout-draft-v1:${businessId}`;
+  const legacyDraftKey = "kasir-umkm:checkout-draft-v1";
+  const successMarkerKey = `kasir-umkm:checkout-cleared-sale-v1:${businessId}`;
+  const preferencesKey = `kasir-umkm:catalog-preferences-v1:${businessId}`;
 
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const filteredProducts = useMemo(() => {
@@ -59,36 +75,112 @@ export default function CheckoutClient({
     return sum + Math.round(Number(product?.price ?? 0) * line.quantity);
   }, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const quickCashAmounts = [...new Set([subtotal, 50_000, 100_000].filter((amount) => amount >= subtotal && amount > 0))];
+  const quickCashAmounts = [...new Set([
+    subtotal,
+    Math.ceil(subtotal / 10_000) * 10_000,
+    Math.ceil(subtotal / 20_000) * 20_000,
+    50_000,
+    100_000,
+  ].filter((amount) => amount >= subtotal && amount > 0))];
+  const quickProducts = products
+    .filter((product) => !product.track_stock || (product.stock_qty ?? 0) > 0)
+    .filter((product) => categoryId === "all" || product.category_id === categoryId)
+    .filter((product) => catalogPreferences.favorites.includes(product.id) || (catalogPreferences.picks[product.id] ?? 0) > 0)
+    .sort((a, b) => Number(catalogPreferences.favorites.includes(b.id)) - Number(catalogPreferences.favorites.includes(a.id))
+      || (catalogPreferences.picks[b.id] ?? 0) - (catalogPreferences.picks[a.id] ?? 0))
+    .slice(0, 8);
 
   useEffect(() => {
-    const draftKey = "kasir-umkm:checkout-draft-v1";
-    if (!errorMessage) {
-      sessionStorage.removeItem(draftKey);
-      return;
-    }
     try {
-      const raw = sessionStorage.getItem(draftKey);
+      if (clearDraft) {
+        clearedSuccessDraft.current = true;
+        const handledSaleId = sessionStorage.getItem(successMarkerKey);
+        if (successSaleId && handledSaleId !== successSaleId) {
+          sessionStorage.removeItem(draftKey);
+          sessionStorage.removeItem(legacyDraftKey);
+          sessionStorage.setItem(successMarkerKey, successSaleId);
+          setCart([]);
+          setActiveIdempotencyKey(idempotencyKey);
+          setPaymentMethod("cash");
+          setCashReceived("");
+          return;
+        }
+      }
+      let raw = sessionStorage.getItem(draftKey);
+      if (!raw) {
+        raw = sessionStorage.getItem(legacyDraftKey);
+        if (raw) {
+          sessionStorage.setItem(draftKey, raw);
+          sessionStorage.removeItem(legacyDraftKey);
+        }
+      }
       if (!raw) return;
-      const draft = JSON.parse(raw) as { items?: unknown; idempotencyKey?: unknown };
+      const draft = JSON.parse(raw) as { items?: unknown; idempotencyKey?: unknown; paymentMethod?: unknown; cashReceived?: unknown };
       if (Array.isArray(draft.items)) {
         const restored = draft.items.filter((item): item is CartLine =>
           !!item && typeof item === "object" && "productId" in item && "quantity" in item
           && typeof item.productId === "string" && productById.has(item.productId)
           && typeof item.quantity === "number" && Number.isFinite(item.quantity)
           && item.quantity > 0 && item.quantity <= 1_000_000
+          && (!productById.get(item.productId)?.track_stock || (productById.get(item.productId)?.stock_qty !== null
+            && item.quantity <= Number(productById.get(item.productId)?.stock_qty ?? 0)))
         );
         setCart(restored);
-        if (typeof draft.idempotencyKey === "string" && draft.idempotencyKey.length <= 100) {
+        setDraftRestored(restored.length > 0);
+        if (typeof draft.idempotencyKey === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft.idempotencyKey)) {
           setActiveIdempotencyKey(draft.idempotencyKey);
         }
+        if (draft.paymentMethod === "cash" || draft.paymentMethod === "transfer" || draft.paymentMethod === "other") setPaymentMethod(draft.paymentMethod);
+        if (typeof draft.cashReceived === "string" && /^[0-9]*$/.test(draft.cashReceived)) setCashReceived(draft.cashReceived);
       }
     } catch {
       // Ignore a malformed local draft; server validation remains authoritative.
     } finally {
-      sessionStorage.removeItem(draftKey);
+      setDraftReady(true);
     }
-  }, [errorMessage, idempotencyKey, productById]);
+  }, [clearDraft, draftKey, idempotencyKey, legacyDraftKey, productById, successMarkerKey, successSaleId]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(preferencesKey);
+      if (raw) {
+        const value = JSON.parse(raw) as Partial<CatalogPreferences>;
+        const picks: Record<string, number> = value.picks && typeof value.picks === "object"
+          ? Object.fromEntries(Object.entries(value.picks).filter(([id, count]) => productById.has(id) && typeof count === "number" && Number.isSafeInteger(count) && count > 0)) as Record<string, number>
+          : {};
+        setCatalogPreferences({
+          favorites: Array.isArray(value.favorites) ? value.favorites.filter((id): id is string => typeof id === "string" && productById.has(id)) : [],
+          picks,
+        });
+      }
+    } catch {
+      // A malformed local preference should not block checkout.
+    } finally {
+      setPreferencesReady(true);
+    }
+  }, [preferencesKey, productById]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    try {
+      if ((clearDraft && !clearedSuccessDraft.current) || cart.length === 0) {
+        sessionStorage.removeItem(draftKey);
+        return;
+      }
+      sessionStorage.setItem(draftKey, JSON.stringify({ items: cart, idempotencyKey: activeIdempotencyKey, paymentMethod, cashReceived }));
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
+  }, [activeIdempotencyKey, cart, cashReceived, clearDraft, draftKey, draftReady, paymentMethod]);
+
+  useEffect(() => {
+    if (!preferencesReady) return;
+    try {
+      localStorage.setItem(preferencesKey, JSON.stringify(catalogPreferences));
+    } catch {
+      // Favorites are a convenience; storage restrictions should not block sales.
+    }
+  }, [catalogPreferences, preferencesKey, preferencesReady]);
 
   useEffect(() => {
     if (!cartOpen) return;
@@ -105,6 +197,12 @@ export default function CheckoutClient({
   }, [cartOpen]);
 
   function addProduct(product: Product) {
+    const currentQuantity = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
+    if (product.track_stock && (product.stock_qty ?? 0) < currentQuantity + 1) return;
+    setCatalogPreferences((current) => ({
+      ...current,
+      picks: { ...current.picks, [product.id]: Math.min((current.picks[product.id] ?? 0) + 1, 10_000) },
+    }));
     setCart((current) => {
       const existing = current.find((line) => line.productId === product.id);
       if (existing) {
@@ -116,6 +214,15 @@ export default function CheckoutClient({
       return [...current, { productId: product.id, quantity: 1 }];
     });
     setCashReceived("");
+  }
+
+  function toggleFavorite(productId: string) {
+    setCatalogPreferences((current) => ({
+      ...current,
+      favorites: current.favorites.includes(productId)
+        ? current.favorites.filter((id) => id !== productId)
+        : [...current.favorites, productId],
+    }));
   }
 
   function changeQuantity(productId: string, quantity: number) {
@@ -136,9 +243,11 @@ export default function CheckoutClient({
       return;
     }
     try {
-      sessionStorage.setItem("kasir-umkm:checkout-draft-v1", JSON.stringify({
+      sessionStorage.setItem(draftKey, JSON.stringify({
         items: cart,
         idempotencyKey: activeIdempotencyKey,
+        paymentMethod,
+        cashReceived,
       }));
     } catch {
       // Checkout still proceeds if the browser blocks session storage.
@@ -250,6 +359,7 @@ export default function CheckoutClient({
 
   return (
     <>
+      {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang sebelumnya dipulihkan. Periksa kembali jumlah barang dan stok sebelum menyimpan.</p>}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)]">
         <section className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -264,7 +374,7 @@ export default function CheckoutClient({
           <label className="relative mb-3 block">
             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari nama produk atau scan SKU…" aria-label="Cari produk"
+              placeholder="Cari nama produk atau SKU…" aria-label="Cari produk"
               className="w-full rounded-xl border border-line bg-canvas py-3 pl-10 pr-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10" />
           </label>
 
@@ -280,6 +390,15 @@ export default function CheckoutClient({
               </button>
             ))}
           </div>
+
+          {quickProducts.length > 0 && !search.trim() && <section aria-label="Produk pilihan cepat" className="mb-5 rounded-2xl bg-brand-soft/55 p-3 sm:p-4">
+            <div className="mb-3 flex items-center gap-2"><Sparkles size={16} className="text-brand" /><h3 className="text-sm font-bold">Pilihan cepat</h3><span className="text-xs text-muted">Favorit dan sering dipilih di perangkat ini</span></div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {quickProducts.map((product) => <button key={product.id} type="button" onClick={() => addProduct(product)} className="flex min-w-36 max-w-44 flex-col items-start rounded-xl border border-white bg-white px-3 py-2.5 text-left shadow-sm hover:border-brand">
+                <span className="line-clamp-1 w-full text-xs font-semibold">{product.name}</span><span className="mt-1 text-xs font-bold text-brand">{rupiah(Number(product.price))}</span>
+              </button>)}
+            </div>
+          </section>}
 
           {dataError ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-8 text-center">
@@ -303,14 +422,19 @@ export default function CheckoutClient({
                 const outOfStock = product.track_stock && (product.stock_qty ?? 0) < 1;
                 const quantityInCart = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
                 return (
-                  <button key={product.id} type="button" disabled={outOfStock} onClick={() => addProduct(product)}
-                    className="group relative flex min-h-32 flex-col rounded-xl border border-line bg-white p-3 text-left transition hover:border-brand hover:bg-brand-soft/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45">
-                    {quantityInCart > 0 && <span className="absolute right-2 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{quantityInCart}</span>}
-                    <span className="line-clamp-2 pr-7 text-sm font-semibold leading-5">{product.name}</span>
-                    <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
-                    <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{rupiah(Number(product.price))}</span>
-                    {outOfStock ? <span className="mt-1 text-[11px] font-semibold text-red-600">Stok habis</span> : product.track_stock && <span className="mt-1 text-[11px] text-muted">Stok {product.stock_qty ?? 0}</span>}
-                  </button>
+                  <article key={product.id} className={`relative flex min-h-32 flex-col rounded-xl border border-line bg-white transition hover:border-brand ${outOfStock ? "opacity-50" : "hover:bg-brand-soft/30"}`}>
+                    <button type="button" disabled={outOfStock} onClick={() => addProduct(product)} aria-label={`Tambah ${product.name} ke keranjang`}
+                      className="flex min-h-32 flex-1 flex-col rounded-xl p-3 pr-10 text-left disabled:cursor-not-allowed">
+                      {quantityInCart > 0 && <span className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{quantityInCart}</span>}
+                      <span className="line-clamp-2 text-sm font-semibold leading-5">{product.name}</span>
+                      <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
+                      <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{rupiah(Number(product.price))}</span>
+                      {outOfStock ? <span className="mt-1 text-[11px] font-semibold text-red-600">Stok habis</span> : product.track_stock && <span className="mt-1 text-[11px] text-muted">Stok {product.stock_qty ?? 0}</span>}
+                    </button>
+                    <button type="button" aria-label={`${catalogPreferences.favorites.includes(product.id) ? "Hapus dari" : "Tambah ke"} favorit ${product.name}`} aria-pressed={catalogPreferences.favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)} className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-full text-amber-600 hover:bg-amber-50">
+                      <Star size={17} fill={catalogPreferences.favorites.includes(product.id) ? "currentColor" : "none"} />
+                    </button>
+                  </article>
                 );
               })}
             </div>
@@ -319,16 +443,16 @@ export default function CheckoutClient({
         <div className="hidden xl:block">{cartPanel}</div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 xl:hidden">
-        <button type="button" onClick={() => setCartOpen(true)} disabled={itemCount === 0}
-          className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)] disabled:cursor-not-allowed disabled:bg-slate-500">
+      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 xl:hidden">
+        <button type="button" onClick={() => setCartOpen(true)} aria-label={`Buka keranjang, ${itemCount} barang, total ${rupiah(subtotal)}`}
+          className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)]">
           <span className="flex min-w-0 items-center gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/15"><ShoppingCart size={18} /></span>
             <span className="min-w-0"><span className="block text-xs text-white/70">{itemCount} barang · {cart.length} jenis</span><strong className="block truncate text-sm">Lihat keranjang</strong></span>
           </span>
           <strong className="shrink-0 text-base tabular-nums">{rupiah(subtotal)}</strong>
         </button>
-      </div>
+      </div>}
 
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
