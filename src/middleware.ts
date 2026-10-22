@@ -5,16 +5,19 @@ import { getSupabasePublicEnv } from "@/lib/env";
 export async function middleware(request: NextRequest) {
   const env = getSupabasePublicEnv();
   const pathname = request.nextUrl.pathname;
-  if (pathname === "/login") {
-    if (!env.configured) return NextResponse.next();
-  } else if (!env.configured) {
+
+  if (!env.configured) {
+    if (pathname === "/login") return NextResponse.next();
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("setup", "supabase");
     return NextResponse.redirect(loginUrl);
   }
 
-  if (!env.configured) return NextResponse.next();
+  // Feature pages and server actions already validate the user themselves.
+  // Avoid a second auth network request on every normal navigation; only auth
+  // entry points need middleware-level session routing.
+  if (pathname !== "/login" && pathname !== "/onboarding") return NextResponse.next();
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(env.url, env.anonKey, {
@@ -29,32 +32,21 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user && pathname !== "/login") {
+
+  if (!user && pathname === "/onboarding") {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && pathname === "/login") {
+  if (user && (pathname === "/login" || pathname === "/onboarding")) {
     const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
     if (membershipError) return response;
     const destination = request.nextUrl.clone();
-    destination.pathname = memberships?.length ? "/" : "/onboarding";
+    destination.pathname = memberships?.length ? "/checkout" : "/onboarding";
     destination.search = "";
-    return NextResponse.redirect(destination);
-  }
-
-  // Membership is checked by protected pages themselves. Avoid an extra RPC
-  // on every navigation; only login/onboarding need a destination decision here.
-  if (user && pathname === "/onboarding") {
-    const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
-    if (!membershipError && memberships && memberships.length > 0) {
-      const homeUrl = request.nextUrl.clone();
-      homeUrl.pathname = "/";
-      homeUrl.search = "";
-      return NextResponse.redirect(homeUrl);
-    }
+    if (pathname !== destination.pathname) return NextResponse.redirect(destination);
   }
 
   return response;
