@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, BarChart3, ReceiptText, TrendingDown, TrendingUp } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
@@ -42,7 +42,7 @@ export default async function ReportsPage() {
   return (
     <main className="min-h-screen bg-canvas">
       <header className="border-b border-line bg-white"><div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-7"><Link href="/" aria-label="Kembali ke dashboard" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link><div><h1 className="text-lg font-bold">Laporan usaha</h1><p className="text-sm text-muted">Ringkasan bulan {month.label}.</p></div></div></header>
-      <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-7">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 pb-24 sm:p-7">
         {(salesErrorMessage || expensesErrorMessage) && <div role="alert" className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{salesErrorMessage && <p>{salesErrorMessage}</p>}{expensesErrorMessage && <p>{expensesErrorMessage}</p>}</div>}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Penjualan tercatat</p><span className="rounded-xl bg-brand-soft p-2 text-brand"><TrendingUp size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(revenue)}</p><p className="mt-1 text-xs text-muted">{saleList.length} transaksi tercatat</p></article>
@@ -51,6 +51,7 @@ export default async function ReportsPage() {
         </div>
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6"><div className="mb-4 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={19} /></span><div><h2 className="font-semibold">Catatan laporan</h2><p className="text-sm text-muted">Periode 1 sampai akhir bulan berjalan.</p></div></div><p className="text-sm leading-6 text-muted">Angka ini adalah ringkasan arus penjualan dan pengeluaran yang tercatat, bukan laba bersih akuntansi. Belum memasukkan HPP lengkap, pajak, biaya pembayaran, atau transaksi yang belum dicatat.</p><Link href="/sales" className="mt-4 inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Lihat transaksi</Link><Link href="/expenses" className="ml-2 mt-4 inline-flex rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-canvas">Lihat pengeluaran</Link></section>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
