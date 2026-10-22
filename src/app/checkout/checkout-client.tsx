@@ -8,6 +8,7 @@ type Product = {
   id: string;
   name: string;
   sku: string | null;
+  category_id: string | null;
   unit: string;
   price: number;
   stock_qty: number | null;
@@ -15,6 +16,7 @@ type Product = {
 };
 
 type CartLine = { productId: string; quantity: number };
+type Category = { id: string; name: string };
 
 const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
   style: "currency", currency: "IDR", maximumFractionDigits: 0,
@@ -22,16 +24,27 @@ const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
 
 export default function CheckoutClient({
   products,
+  categories,
   idempotencyKey,
   errorMessage,
 }: {
   products: Product[];
+  categories: Category[];
   idempotencyKey: string;
   errorMessage?: string;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState("all");
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("id-ID");
+    return products.filter((product) => {
+      const matchesSearch = !query || product.name.toLocaleLowerCase("id-ID").includes(query) || (product.sku ?? "").toLocaleLowerCase("id-ID").includes(query);
+      return matchesSearch && (categoryId === "all" || product.category_id === categoryId);
+    });
+  }, [products, search, categoryId]);
   const subtotal = cart.reduce((sum, line) => {
     const product = productById.get(line.productId);
     return sum + Math.round(Number(product?.price ?? 0) * line.quantity);
