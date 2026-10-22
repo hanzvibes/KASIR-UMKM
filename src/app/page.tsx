@@ -30,7 +30,7 @@ export default function HomePage() {
           {navItems.map(({ label, icon: Icon, active }) => (
             <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : label === "Dashboard" ? "/" : "#"} aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={18} strokeWidth={1.8} />{label}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="mt-auto rounded-2xl bg-canvas p-4">
@@ -121,7 +121,7 @@ export default function HomePage() {
           {navItems.map(({ label, icon: Icon, active }) => (
             <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : "/"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-medium ${active ? "text-brand" : "text-muted"}`}>
               <Icon size={18} />{label === "Pengeluaran" ? "Biaya" : label}
-            </a>
+            </Link>
           ))}
         </nav>
       </section>
