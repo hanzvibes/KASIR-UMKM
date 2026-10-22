@@ -30,7 +30,7 @@ export default async function SalesHistoryPage() {
     <main className="min-h-screen bg-canvas">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/" aria-label="Kembali ke dashboard" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
+          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
           <div><h1 className="text-lg font-bold">Riwayat transaksi</h1><p className="text-sm text-muted">100 transaksi terbaru.</p></div>
         </div>
       </header>
