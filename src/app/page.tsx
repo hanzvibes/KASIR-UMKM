@@ -117,10 +117,10 @@ export default function HomePage() {
           </div>
         </div>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-white/95 px-2 py-2 backdrop-blur md:hidden">
-          {[navItems[0], navItems[1], navItems[2], navItems[3]].map(({ label, icon: Icon, active }) => (
-            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Dashboard" ? "/" : "#"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium ${active ? "text-brand" : "text-muted"}`}>
-              <Icon size={19} />{label}
+        <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t border-line bg-white/95 px-1 py-2 backdrop-blur md:hidden">
+          {navItems.map(({ label, icon: Icon, active }) => (
+            <a key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : "/"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-medium ${active ? "text-brand" : "text-muted"}`}>
+              <Icon size={18} />{label === "Pengeluaran" ? "Biaya" : label}
             </a>
           ))}
         </nav>
