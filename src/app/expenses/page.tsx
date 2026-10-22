@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createExpense } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
@@ -37,7 +37,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
           <div><h1 className="text-lg font-bold">Pengeluaran</h1><p className="text-sm text-muted">Catat biaya operasional usaha.</p></div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-6xl gap-6 p-4 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
+      <div className="mx-auto grid max-w-6xl gap-6 p-4 pb-24 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
           <div className="mb-5 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><Wallet size={20} /></span><div><h2 className="font-semibold">Tambah pengeluaran</h2><p className="text-sm text-muted">Masukkan nominal dalam rupiah.</p></div></div>
           {params.error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{params.error}</p>}
@@ -63,6 +63,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
           {error ? <p role="alert" className="p-5 text-sm text-red-700">Data belum bisa dimuat. Pastikan migrasi pengeluaran diterapkan di Supabase development.</p> : (expenses ?? []).length === 0 ? <div className="p-8 text-center"><p className="font-semibold">Belum ada pengeluaran</p><p className="mt-1 text-sm text-muted">Catatan pengeluaran akan muncul di sini.</p></div> : <ul className="divide-y divide-line">{expenses?.map((expense) => <li key={expense.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{expense.category}</p><p className="mt-1 text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(`${expense.expense_date}T12:00:00+07:00`))}</p>{expense.description && <p className="mt-2 text-sm text-muted">{expense.description}</p>}</div><p className="shrink-0 text-sm font-bold">{money(expense.amount)}</p></div></li>)}</ul>}
         </section>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
