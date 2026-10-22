@@ -45,16 +45,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(destination);
   }
 
-  if (user && pathname !== "/onboarding") {
-    const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
-    if (!membershipError && (!memberships || memberships.length === 0)) {
-      const onboardingUrl = request.nextUrl.clone();
-      onboardingUrl.pathname = "/onboarding";
-      onboardingUrl.search = "";
-      return NextResponse.redirect(onboardingUrl);
-    }
-  }
-
+  // Membership is checked by protected pages themselves. Avoid an extra RPC
+  // on every navigation; only login/onboarding need a destination decision here.
   if (user && pathname === "/onboarding") {
     const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
     if (!membershipError && memberships && memberships.length > 0) {
