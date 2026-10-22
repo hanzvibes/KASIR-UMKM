@@ -2,7 +2,7 @@ import Link from "next/link";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, active: true },
@@ -86,10 +86,6 @@ export default async function HomePage() {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto rounded-2xl bg-canvas p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Settings size={16} /> Pengaturan</div>
-          <p className="text-xs leading-5 text-muted">Atur profil usaha dan preferensi kasir.</p>
-        </div>
       </aside>
 
       <section className="min-w-0 flex-1">
@@ -149,15 +145,15 @@ export default async function HomePage() {
               </div>
               <div className="space-y-3">
                 {[
-                  { title: "Buat profil usaha", desc: "Nama dan informasi usaha", icon: Coffee },
-                  { title: "Tambahkan produk", desc: "Nama barang dan harga jual", icon: Package },
-                  { title: "Catat penjualan", desc: "Mulai transaksi pertamamu", icon: CreditCard },
-                ].map(({ title, desc, icon: Icon }, index) => (
-                  <div key={title} className="flex items-center gap-3 rounded-xl border border-line p-3">
+                  { title: "Tambah produk", desc: "Siapkan barang dan harga jual", icon: Package, href: "/products" },
+                  { title: "Transaksi baru", desc: "Mulai melayani pelanggan", icon: CreditCard, href: "/checkout" },
+                  { title: "Catat pengeluaran", desc: "Jaga biaya operasional tetap tercatat", icon: Wallet, href: "/expenses" },
+                ].map(({ title, desc, icon: Icon, href }) => (
+                  <Link key={title} href={href} className="flex items-center gap-3 rounded-xl border border-line p-3 transition hover:border-brand hover:bg-brand-soft/30 active:scale-[0.99]">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><Icon size={19} /></span>
                     <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-muted">{desc}</p></div>
-                    <span className="text-xs font-semibold text-muted">0{index + 1}</span>
-                  </div>
+                    <Plus size={16} className="shrink-0 text-muted" />
+                  </Link>
                 ))}
               </div>
             </article>
