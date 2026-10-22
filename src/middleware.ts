@@ -37,16 +37,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/login") {
-    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
     const destination = request.nextUrl.clone();
-    destination.pathname = membership ? "/" : "/onboarding";
+    // Do not send existing users into onboarding when membership lookup itself failed.
+    destination.pathname = membershipError ? pathname : memberships?.length ? "/" : "/onboarding";
     destination.search = "";
     return NextResponse.redirect(destination);
   }
 
   if (user && pathname !== "/onboarding") {
-    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
-    if (!membership) {
+    const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+    if (!membershipError && (!memberships || memberships.length === 0)) {
       const onboardingUrl = request.nextUrl.clone();
       onboardingUrl.pathname = "/onboarding";
       onboardingUrl.search = "";
@@ -55,8 +56,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/onboarding") {
-    const { data: membership } = await supabase.from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
-    if (membership) {
+    const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+    if (!membershipError && memberships && memberships.length > 0) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = "/";
       homeUrl.search = "";
