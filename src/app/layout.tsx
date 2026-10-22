@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaControls from "@/shared/ui/pwa-controls";
+import AppNavigation from "@/components/app-navigation";
 
 export const metadata: Metadata = {
   title: "Kasir UMKM",
@@ -31,7 +32,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body>{children}<PwaControls /></body>
+      <body>{children}<AppNavigation /><PwaControls /></body>
     </html>
   );
 }

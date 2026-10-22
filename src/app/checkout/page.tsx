@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { CheckCircle2, ShoppingCart } from "lucide-react";
 import { redirect } from "next/navigation";
-import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import CheckoutClient from "./checkout-client";
 
@@ -69,10 +68,10 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       </header>
       <div className="mx-auto max-w-7xl space-y-5 p-4 pb-24 sm:p-7">
         {(error || categoriesError || variantGroupsError || variantOptionsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk, kategori, atau pilihan produk gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
-        {completedSale && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900"><span className="flex items-center gap-2 font-semibold"><CheckCircle2 size={18} /> Transaksi berhasil disimpan · {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(completedSale.total_amount))}</span><Link prefetch={false} href={`/sales/${completedSale.id}`} className="font-semibold underline underline-offset-2">Lihat struk</Link></div>}
+        {completedSale && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900"><span className="flex items-center gap-2 font-semibold"><CheckCircle2 size={18} /> Transaksi berhasil disimpan · {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(completedSale.total_amount))}</span><Link href={`/sales/${completedSale.id}`} className="font-semibold underline underline-offset-2">Lihat struk</Link></div>}
         <CheckoutClient key={completedSale?.id ?? "active-checkout"} products={products ?? []} categories={categories ?? []} variants={variants} businessId={membership.business_id} qrisImageUrl={business?.qris_image_url ?? null} idempotencyKey={randomUUID()} errorMessage={params.error} clearDraft={Boolean(completedSale)} successSaleId={completedSale?.id} dataError={Boolean(error || categoriesError || variantGroupsError || variantOptionsError)} />
       </div>
-      <MobileBottomNav />
+
     </main>
   );
 }

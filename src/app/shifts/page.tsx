@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Banknote, CircleStop, Clock3 } from "lucide-react";
-import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { addCashMovementAction, closeShiftAction, openShiftAction } from "./actions";
 import PrintReportButton from "./print-report-button";
@@ -47,6 +46,6 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Param
       </>}
       {closedShift && <section className="rounded-2xl border border-line bg-white p-5 shadow-soft print:mx-auto print:max-w-xl print:border-0 print:shadow-none"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Laporan penutupan shift</h2><p className="text-sm text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(closedShift.opened_at))}</p></div><PrintReportButton /></div><div className="divide-y divide-line">{[["Modal awal",closedShift.opening_cash],["Penjualan tunai",closedSummary?.cash_sales],["QRIS",closedSummary?.qris_sales],["Transfer",closedSummary?.transfer_sales],["Kas masuk",closedSummary?.cash_in],["Kas keluar",closedSummary?.cash_out],["Jumlah transaksi",closedSummary?.transaction_count],["Void",closedSummary?.void_count],["Uang seharusnya",closedShift.expected_cash],["Uang aktual",closedShift.actual_cash],["Selisih",closedShift.difference]].map(([label,value])=><div key={label} className="flex justify-between gap-3 py-2 text-sm"><span className="text-muted">{label}</span><strong>{label === "Jumlah transaksi" || label === "Void" ? Number(value ?? 0) : rupiah(Number(value ?? 0))}</strong></div>)}</div>{closedShift.note && <p className="mt-3 text-sm">Catatan: {closedShift.note}</p>}</section>}
       {!active && membership.role === "owner" && !!history?.length && <section className="rounded-2xl border border-line bg-white p-5"><h2 className="mb-3 font-semibold">Riwayat selisih kas</h2><div className="divide-y divide-line">{history.map((shift) => <div key={shift.id} className="flex justify-between gap-3 py-3 text-sm"><span>{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(shift.opened_at))} · {shift.status === "closed" ? "Ditutup" : "Berjalan"}</span><strong>{shift.difference === null ? "—" : rupiah(shift.difference)}</strong></div>)}</div></section>}
-    </div><MobileBottomNav />
+    </div>
   </main>;
 }

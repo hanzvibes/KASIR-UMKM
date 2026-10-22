@@ -1,12 +1,13 @@
 begin;
 
-select plan(46);
+select plan(50);
 
 -- Fixtures are rolled back so this test can run repeatedly against a local database.
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
 values
   ('a0000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'tenant-a@example.test', 'test-only', now(), now(), now()),
-  ('b0000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'tenant-b@example.test', 'test-only', now(), now(), now());
+  ('b0000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'tenant-b@example.test', 'test-only', now(), now(), now()),
+  ('c0000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'tenant-c@example.test', 'test-only', now(), now(), now());
 
 insert into public.businesses (id, name)
 values
@@ -71,6 +72,10 @@ insert into public.kasir_sales (id, business_id, created_by, total_amount, payme
 values
   ('a4000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 1000, 'cash', 'a5000000-0000-4000-8000-000000000001'),
   ('b4000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', 2000, 'cash', 'b5000000-0000-4000-8000-000000000002');
+
+insert into public.kasir_sales (id, business_id, created_by, payment_method, idempotency_key)
+values ('c4000000-0000-4000-8000-000000000003', 'a1000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'cash', 'c5000000-0000-4000-8000-000000000003');
+select is((select total_amount from public.kasir_sales where id='c4000000-0000-4000-8000-000000000003'), 0::numeric, 'new checkout sale rows default total_amount to zero before final calculation');
 
 insert into public.kasir_sale_items (business_id, sale_id, product_id, product_name, quantity, unit_price, line_total)
 values
@@ -237,6 +242,15 @@ do $$ begin
  perform public.kasir_close_shift((select id from public.kasir_shifts where cashier_id='a0000000-0000-4000-8000-000000000001' and status='open'),2300,null);
 end $$;
 select is((select expected_cash from public.kasir_shifts where cashier_id='a0000000-0000-4000-8000-000000000001' and status='closed' order by opened_at desc limit 1),2300::bigint,'closing cash includes opening balance, cash sale, cash in and cash out');
+
+select set_config('request.jwt.claim.sub', 'c0000000-0000-4000-8000-000000000003', true);
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-4000-8000-000000000003","role":"authenticated"}', true);
+select lives_ok(
+  $$select public.kasir_create_business_wizard('Warung C','retail',false,'[{"name":"Produk Perdana","price":"12500","sku":null}]'::jsonb)$$,
+  'onboarding creates the business and first product in one RPC'
+);
+select is((select count(*) from public.kasir_products p join public.kasir_business_members bm on bm.business_id=p.business_id where bm.user_id='c0000000-0000-4000-8000-000000000003' and p.name='Produk Perdana'),1::bigint,'onboarding saves the selected first product');
+select is((select p.price from public.kasir_products p join public.kasir_business_members bm on bm.business_id=p.business_id where bm.user_id='c0000000-0000-4000-8000-000000000003' and p.name='Produk Perdana'),12500::numeric,'onboarding stores the initial product price as rupiah integer');
 
 reset role;
 select * from finish();

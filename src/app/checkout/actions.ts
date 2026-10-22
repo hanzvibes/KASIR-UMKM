@@ -89,10 +89,14 @@ export async function checkoutAction(formData: FormData) {
     const message = error?.message ?? "";
     if (message.toLowerCase().includes("insufficient stock")) fail("Stok tidak cukup untuk salah satu produk. Periksa stok lalu coba lagi.");
     if (message.toLowerCase().includes("cash received")) fail("Uang diterima tidak boleh kurang dari total transaksi.");
+    if (message.toLowerCase().includes("open shift required")) fail("Kasir belum dibuka. Buka kasir dulu untuk memulai transaksi.");
+    if (message.toLowerCase().includes("discount cannot exceed subtotal")) fail("Diskon tidak boleh melebihi subtotal belanja.");
     if (message.toLowerCase().includes("inactive") || message.toLowerCase().includes("product not found")) fail("Ada produk yang sudah nonaktif atau tidak tersedia.");
     if (message.toLowerCase().includes("variant")) fail("Pilihan produk berubah atau tidak tersedia. Periksa kembali keranjang.");
     if (message.toLowerCase().includes("business access denied")) redirect("/onboarding");
-    fail("Transaksi gagal disimpan. Pastikan migrasi checkout sudah diterapkan pada Supabase development.");
+    if (error?.code === "PGRST202") fail("Fitur checkout belum tersedia di database. Minta pemilik usaha memperbarui database.");
+    if (error) console.error("Checkout RPC failed", { code: error.code });
+    fail("Transaksi belum tersimpan. Coba lagi; jika masalah berulang, hubungi pemilik usaha.");
   }
 
   revalidatePath("/");

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import MobileBottomNav from "@/components/mobile-bottom-nav";
 import PrintReceiptButton from "./print-button";
 import { voidSaleAction } from "../actions";
 import ShareReceipt from "./share-receipt";
@@ -45,7 +44,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
     <main className="min-h-screen bg-canvas p-4 pb-28 sm:p-8 md:pb-28 print:pb-0">
       <div className="mx-auto max-w-2xl">
         <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
-          <Link href="/checkout" prefetch={false} className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={17} /> Kembali ke kasir</Link>
+          <Link href="/checkout" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={17} /> Kembali ke kasir</Link>
           <PrintReceiptButton />
         </div>
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-8 print:border-0 print:shadow-none">
@@ -77,12 +76,12 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
         </section>
         {!isVoided && membership.role === "owner" && <form action={voidSaleAction} className="mt-4 space-y-3 rounded-2xl border border-red-200 bg-white p-4 print:hidden"><h2 className="font-semibold text-red-800">Batalkan transaksi</h2><p className="text-sm text-muted">Gunakan hanya untuk transaksi yang keliru. Stok akan dikembalikan dan pembatalan dicatat.</p><input type="hidden" name="sale_id" value={sale.id} /><label className="grid gap-1.5 text-sm font-medium">Alasan pembatalan *<textarea name="reason" required minLength={3} maxLength={240} className="min-h-20 rounded-xl border border-line p-3 font-normal" placeholder="Contoh: transaksi salah input" /></label><button type="submit" className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">Batalkan transaksi</button></form>}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row print:hidden">
-          <Link href="/checkout" prefetch={false} className="flex-1 rounded-xl bg-brand px-4 py-3 text-center text-sm font-semibold text-white">Transaksi baru</Link>
-          <Link href="/sales" prefetch={false} className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-center text-sm font-semibold">Riwayat transaksi</Link>
+          <Link href="/checkout" className="flex-1 rounded-xl bg-brand px-4 py-3 text-center text-sm font-semibold text-white">Transaksi baru</Link>
+          <Link href="/sales" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-center text-sm font-semibold">Riwayat transaksi</Link>
           {!isVoided && <ShareReceipt token={sale.public_receipt_token} invoice={sale.invoice_no} total={Number(sale.total_amount)} />}
         </div>
       </div>
-      <MobileBottomNav />
+
     </main>
   );
 }

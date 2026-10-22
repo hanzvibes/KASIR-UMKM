@@ -33,7 +33,7 @@ export default function MobileBottomNav() {
             <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">Kelola usaha</p>
             <div className="space-y-1">
               {moreItems.map(({ label, href, Icon, description }) => (
-                <Link key={href} href={href} prefetch={false} onClick={() => setMenuOpen(false)}
+                <Link key={href} href={href} prefetch={true} onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-xl p-3 transition-colors ${pathname === href ? "bg-brand-soft text-brand" : "text-ink hover:bg-canvas"}`}>
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas"><Icon size={19} /></span>
                   <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="mt-0.5 block text-xs text-muted">{description}</span></span>
@@ -47,7 +47,7 @@ export default function MobileBottomNav() {
         {primaryItems.map(({ label, short, href, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
-            <Link key={href} href={href} prefetch={false} aria-label={label} aria-current={active ? "page" : undefined}
+            <Link key={href} href={href} prefetch={true} aria-label={label} aria-current={active ? "page" : undefined}
               className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${active ? "bg-brand-soft/80 text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
               <Icon size={19} strokeWidth={active ? 2.3 : 1.8} aria-hidden="true" />
               <span>{short}</span>

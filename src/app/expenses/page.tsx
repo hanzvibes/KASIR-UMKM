@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { redirect } from "next/navigation";
-import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { createExpense } from "./actions";
 
@@ -38,7 +37,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/checkout" prefetch={false} aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
+          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
           <div><h1 className="text-lg font-bold">Pengeluaran</h1><p className="text-sm text-muted">Catat biaya operasional usaha.</p></div>
         </div>
       </header>
@@ -68,7 +67,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
           {error ? <p role="alert" className="p-5 text-sm text-red-700">Data pengeluaran gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p> : (expenses ?? []).length === 0 ? <div className="p-8 text-center"><p className="font-semibold">Belum ada pengeluaran</p><p className="mt-1 text-sm text-muted">Catatan pengeluaran akan muncul di sini.</p></div> : <ul className="divide-y divide-line">{expenses?.map((expense) => <li key={expense.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{expense.category}</p><p className="mt-1 text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(`${expense.expense_date}T12:00:00+07:00`))}</p>{expense.description && <p className="mt-2 text-sm text-muted">{expense.description}</p>}</div><p className="shrink-0 text-sm font-bold">{money(expense.amount)}</p></div></li>)}</ul>}
         </section>
       </div>
-      <MobileBottomNav />
+
     </main>
   );
 }
