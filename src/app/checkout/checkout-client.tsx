@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
+import { Check, Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
 import { checkoutAction } from "./actions";
 
 type Product = {
@@ -65,6 +65,8 @@ export default function CheckoutClient({
   const [cashReceived, setCashReceived] = useState("");
   const [discount, setDiscount] = useState("0");
   const [search, setSearch] = useState("");
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [categoryId, setCategoryId] = useState("all");
   const [submitting, setSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -84,14 +86,15 @@ export default function CheckoutClient({
   const variantByProductId = useMemo(() => new Map(variants.map((variant) => [variant.product_id, variant])), [variants]);
   const optionById = useMemo(() => new Map(variants.flatMap((group) => group.options.map((option) => [option.id, option] as const))), [variants]);
   const cartLineKey = (productId: string, optionId: string | null) => `${productId}:${optionId ?? ""}`;
+  const deferredSearch = useDeferredValue(search);
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("id-ID");
+    const query = deferredSearch.trim().toLocaleLowerCase("id-ID");
     return products.filter((product) => {
       const matchesSearch = !query || product.name.toLocaleLowerCase("id-ID").includes(query)
         || (product.sku ?? "").toLocaleLowerCase("id-ID").includes(query);
       return matchesSearch && (categoryId === "all" || product.category_id === categoryId);
     });
-  }, [products, search, categoryId]);
+  }, [products, deferredSearch, categoryId]);
 
   const subtotal = cart.reduce((sum, line) => {
     const product = productById.get(line.productId);
@@ -230,6 +233,24 @@ export default function CheckoutClient({
   }, [catalogPreferences, preferencesKey, preferencesReady]);
 
   useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
+  useEffect(() => {
+    if (!lastAddedId) return;
+    const timer = window.setTimeout(() => setLastAddedId(null), 600);
+    return () => window.clearTimeout(timer);
+  }, [lastAddedId]);
+
+  useEffect(() => {
     if (!cartOpen && !variantProductId) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -258,6 +279,8 @@ export default function CheckoutClient({
   function addCartLine(product: Product, variantOptionId: string | null) {
     const currentQuantity = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);
     if (product.track_stock && (product.stock_qty ?? 0) < currentQuantity + 1) return;
+    setLastAddedId(product.id);
+    navigator.vibrate?.(8);
     setCatalogPreferences((current) => ({
       ...current,
       picks: { ...current.picks, [product.id]: Math.min((current.picks[product.id] ?? 0) + 1, 10_000) },
@@ -277,6 +300,13 @@ export default function CheckoutClient({
     const product = variantProductId ? productById.get(variantProductId) : null;
     if (product) addCartLine(product, optionId);
     setVariantProductId(null);
+  }
+
+  function clearCart() {
+    setCart([]);
+    setCashReceived("");
+    setDiscount("0");
+    setActiveIdempotencyKey(crypto.randomUUID());
   }
 
   function toggleFavorite(productId: string) {
@@ -300,6 +330,19 @@ export default function CheckoutClient({
     if (product?.track_stock && product.stock_qty !== null && quantity + otherQuantity > product.stock_qty) return;
     setCart((current) => current.map((line) => cartLineKey(line.productId, line.variantOptionId) === lineKey ? { ...line, quantity } : line));
     setCashReceived("");
+  }
+
+  // Barcode scanners and SKU typing end with Enter: add the matching product immediately.
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    const query = search.trim().toLocaleLowerCase("id-ID");
+    if (!query) return;
+    const exactSku = filteredProducts.find((product) => (product.sku ?? "").toLocaleLowerCase("id-ID") === query);
+    const product = exactSku ?? (filteredProducts.length === 1 ? filteredProducts[0] : null);
+    if (!product) return;
+    event.preventDefault();
+    addProduct(product);
+    setSearch("");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -356,10 +399,10 @@ export default function CheckoutClient({
                   <p className="mt-1 text-sm font-bold">{rupiah(Math.round(unitPrice * line.quantity))}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button type="button" aria-label={`Kurangi ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas"><Minus size={14} /></button>
-                  <span className="w-6 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity + 1)} disabled={product.track_stock && product.stock_qty !== null && productQuantity >= product.stock_qty} className="grid h-9 w-9 place-items-center rounded-lg border border-line active:bg-canvas disabled:opacity-40"><Plus size={14} /></button>
-                  <button type="button" aria-label={`Hapus ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, 0)} className="grid h-9 w-8 place-items-center rounded-lg text-red-600 active:bg-red-50"><Trash2 size={15} /></button>
+                  <button type="button" aria-label={`Kurangi ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity - 1)} className="press grid h-10 w-10 place-items-center rounded-lg border border-line bg-white active:bg-canvas"><Minus size={15} /></button>
+                  <span className="w-7 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
+                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity + 1)} disabled={product.track_stock && product.stock_qty !== null && productQuantity >= product.stock_qty} className="press grid h-10 w-10 place-items-center rounded-lg border border-line bg-white active:bg-canvas disabled:opacity-40"><Plus size={15} /></button>
+                  <button type="button" aria-label={`Hapus ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, 0)} className="press grid h-10 w-9 place-items-center rounded-lg text-red-600 active:bg-red-50"><Trash2 size={16} /></button>
                 </div>
               </li>
             );
@@ -416,7 +459,7 @@ export default function CheckoutClient({
           )}
           {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
           <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-soft transition active:scale-[0.99] hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">
+            className="press flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">
             {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan transaksi</>}
           </button>
           <p className="text-center text-[11px] leading-4 text-muted">Harga dan stok diverifikasi ulang saat transaksi disimpan.</p>
@@ -426,10 +469,14 @@ export default function CheckoutClient({
   );
 
   const cartPanel = (
-    <section className="h-fit rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+    <section className="h-fit rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5 xl:sticky xl:top-20">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div><h2 className="font-bold">Keranjang</h2><p className="mt-1 text-xs text-muted">{itemCount} barang · {cart.length} jenis</p></div>
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><ShoppingCart size={19} /></span>
+        {cart.length > 0 ? (
+          <button type="button" onClick={clearCart} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50">Kosongkan</button>
+        ) : (
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><ShoppingCart size={19} /></span>
+        )}
       </div>
       {cartContent}
     </section>
@@ -437,11 +484,14 @@ export default function CheckoutClient({
 
   return (
     <>
+      <p className="sr-only" role="status" aria-live="polite">
+        {lastAddedId ? `${productById.get(lastAddedId)?.name ?? "Produk"} ditambahkan ke keranjang.` : ""}
+      </p>
       {variantProductId && variantByProductId.get(variantProductId) && productById.get(variantProductId) && (() => {
         const product = productById.get(variantProductId)!;
         const group = variantByProductId.get(variantProductId)!;
-        return <div className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProductId(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="variant-picker-title" className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:mx-auto sm:max-w-xl sm:rounded-3xl sm:p-6">
+        return <div className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-[2px] animate-fade-in" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProductId(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="variant-picker-title" className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:mx-auto sm:max-w-xl sm:rounded-3xl sm:p-6">
             <div className="mb-4"><p className="text-xs font-bold uppercase tracking-wider text-brand">Pilihan produk</p><h2 id="variant-picker-title" className="mt-1 text-xl font-bold">{product.name}</h2><p className="mt-1 text-sm text-muted">Pilih {group.name.toLocaleLowerCase("id-ID")} untuk melanjutkan.</p></div>
             <div className="space-y-2">{group.options.map((option) => {
               const price = Number(product.price) + option.price_delta;
@@ -453,7 +503,7 @@ export default function CheckoutClient({
         </div>;
       })()}
       {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang sebelumnya dipulihkan. Periksa kembali jumlah barang dan stok sebelum menyimpan.</p>}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)] xl:items-start">
         <section className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -464,24 +514,27 @@ export default function CheckoutClient({
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><ShoppingCart size={20} /></span>
           </div>
 
-          <label className="relative mb-3 block">
-            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari nama produk atau SKU…" aria-label="Cari produk"
-              className="w-full rounded-xl border border-line bg-canvas py-3 pl-10 pr-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10" />
-          </label>
+          <div className="sticky top-16 z-10 -mx-4 -mt-1 mb-3 border-b border-line/70 bg-white/95 px-4 pb-2 pt-2 backdrop-blur sm:-mx-5 sm:px-5">
+            <label className="relative block">
+              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input ref={searchRef} type="search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={handleSearchKeyDown}
+                placeholder="Cari nama produk atau SKU…" aria-label="Cari produk"
+                className="w-full rounded-xl border border-line bg-canvas py-3 pl-10 pr-12 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10" />
+              <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line bg-white px-1.5 py-0.5 text-[10px] font-semibold text-muted sm:block">/</kbd>
+            </label>
 
-          <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Filter kategori">
-            <button type="button" onClick={() => setCategoryId("all")} aria-pressed={categoryId === "all"}
-              className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-bold transition-colors ${categoryId === "all" ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
-              Semua
-            </button>
-            {categories.map((category) => (
-              <button key={category.id} type="button" onClick={() => setCategoryId(category.id)} aria-pressed={categoryId === category.id}
-                className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-semibold transition-colors ${categoryId === category.id ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
-                {category.name}
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Filter kategori">
+              <button type="button" onClick={() => setCategoryId("all")} aria-pressed={categoryId === "all"}
+                className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-bold transition-colors ${categoryId === "all" ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
+                Semua
               </button>
-            ))}
+              {categories.map((category) => (
+                <button key={category.id} type="button" onClick={() => setCategoryId(category.id)} aria-pressed={categoryId === category.id}
+                  className={`min-h-11 shrink-0 rounded-full border px-4 py-2.5 text-xs font-semibold transition-colors ${categoryId === category.id ? "border-brand bg-brand text-white" : "border-line bg-white text-muted"}`}>
+                  {category.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           {quickProducts.length > 0 && !search.trim() && <section aria-label="Produk pilihan cepat" className="mb-5 rounded-2xl bg-brand-soft/55 p-3 sm:p-4">
@@ -516,10 +569,11 @@ export default function CheckoutClient({
                 const quantityInCart = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);
                 const productVariant = variantByProductId.get(product.id);
                 return (
-                  <article key={product.id} className={`relative flex min-h-32 flex-col rounded-xl border border-line bg-white transition hover:border-brand ${outOfStock ? "opacity-50" : "hover:bg-brand-soft/30"}`}>
+                  <article key={product.id} className={`relative flex min-h-32 flex-col rounded-xl border bg-white transition-all duration-150 ${lastAddedId === product.id ? "border-brand bg-brand-soft/60 shadow-soft" : "border-line hover:border-brand hover:bg-brand-soft/30"} ${outOfStock ? "opacity-50" : ""}`}>
                     <button type="button" disabled={outOfStock} onClick={() => addProduct(product)} aria-label={`Tambah ${product.name} ke keranjang`}
-                      className="flex min-h-32 flex-1 flex-col rounded-xl p-3 pr-10 text-left disabled:cursor-not-allowed">
-                      {quantityInCart > 0 && <span className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{quantityInCart}</span>}
+                      className="press flex min-h-32 flex-1 flex-col rounded-xl p-3 pr-10 text-left disabled:cursor-not-allowed">
+                      {lastAddedId === product.id && <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-brand text-white animate-pop"><Check size={13} strokeWidth={3} /></span>}
+                      {quantityInCart > 0 && <span key={quantityInCart} className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white animate-pop">{quantityInCart}</span>}
                       <span className="line-clamp-2 text-sm font-semibold leading-5">{product.name}</span>
                       <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
                       <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{productVariant?.options.length ? `Mulai ${rupiah(Math.min(...productVariant.options.map((option) => Number(product.price) + option.price_delta)))}` : rupiah(Number(product.price))}</span>
@@ -538,25 +592,28 @@ export default function CheckoutClient({
         <div className="hidden xl:block">{cartPanel}</div>
       </div>
 
-      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 xl:hidden">
-        <button type="button" onClick={() => setCartOpen(true)} aria-label={`Buka keranjang, ${itemCount} barang, total ${rupiah(subtotal)}`}
-          className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)]">
+      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 animate-rise-in xl:hidden">
+        <button type="button" onClick={() => setCartOpen(true)} aria-label={`Buka pembayaran, ${itemCount} barang, total ${rupiah(total)}`}
+          className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)] active:scale-[0.995]">
           <span className="flex min-w-0 items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/15"><ShoppingCart size={18} /></span>
-            <span className="min-w-0"><span className="block text-xs text-white/70">{itemCount} barang · {cart.length} jenis</span><strong className="block truncate text-sm">Lihat keranjang</strong></span>
+            <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/15"><ShoppingCart size={18} /><span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-white px-1 text-[10px] font-bold text-[#172d22]">{itemCount}</span></span>
+            <span className="min-w-0"><span className="block text-xs text-white/70">Total tagihan</span><strong className="block truncate text-sm">Bayar sekarang</strong></span>
           </span>
-          <strong className="shrink-0 text-base tabular-nums">{rupiah(subtotal)}</strong>
+          <strong className="shrink-0 text-base tabular-nums">{rupiah(total)}</strong>
         </button>
       </div>}
 
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px]" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
+        <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px] animate-fade-in" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-cart-title"
-            className="max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-canvas p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:px-6">
+            className="max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-canvas p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:px-6">
             <div className="mx-auto max-w-2xl">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-wider text-brand">Transaksi berjalan</p><h2 id="mobile-cart-title" className="mt-1 text-xl font-bold">Keranjang & pembayaran</h2></div>
-                <button type="button" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
+                <div className="flex items-center gap-1">
+                  {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Kosongkan</button>}
+                  <button type="button" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
+                </div>
               </div>
               <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
