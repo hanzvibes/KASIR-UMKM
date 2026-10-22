@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, Boxes, ChartNoAxesCombined, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, active: true },
@@ -6,7 +6,7 @@ const navItems = [
   { label: "Transaksi", icon: ReceiptText },
   { label: "Produk", icon: Package },
   { label: "Pengeluaran", icon: Wallet },
-  { label: "Laporan", icon: ChartNoAxesCombined },
+  { label: "Laporan", icon: BarChart3 },
 ];
 
 const stats = [
@@ -87,7 +87,7 @@ export default function HomePage() {
               </div>
               <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center">
                 <div className="max-w-xs">
-                  <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><ChartNoAxesCombined size={23} /></span>
+                  <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><BarChart3 size={23} /></span>
                   <p className="font-semibold">Belum ada data penjualan</p>
                   <p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p>
                 </div>
