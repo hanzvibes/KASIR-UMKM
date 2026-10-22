@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, BarChart3, ReceiptText, TrendingDown, TrendingUp } from "lucide-react";
 import { redirect } from "next/navigation";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
+import { createClient } from "@/lib/supabase/server";
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
