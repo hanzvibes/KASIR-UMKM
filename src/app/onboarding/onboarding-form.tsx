@@ -20,7 +20,7 @@ export function OnboardingForm() {
       if (userError || !user) throw new Error("Sesi login tidak ditemukan. Silakan masuk lagi.");
       const { error } = await supabase.rpc("kasir_create_business", { business_name: name.trim() });
       if (error) throw error;
-      router.replace("/");
+      router.replace("/checkout");
       router.refresh();
     } catch (error) {
       // Supabase/PostgREST errors are plain objects, not always Error instances.
@@ -36,7 +36,7 @@ export function OnboardingForm() {
       if (code === "23505") {
         // Older database function versions reject a retry when the account already has a business.
         // Recover to the dashboard instead of trapping the user on onboarding.
-        router.replace("/");
+        router.replace("/checkout");
         router.refresh();
         return;
       } else if (code === "42501" || code === "PGRST301") {
