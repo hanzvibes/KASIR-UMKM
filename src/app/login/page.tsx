@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
@@ -5,10 +6,10 @@ export default function LoginPage() {
     <main className="grid min-h-screen bg-white md:grid-cols-2">
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-md">
-          <a href="/" className="mb-10 inline-flex items-center gap-3">
+          <Link href="/" className="mb-10 inline-flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white">K</span>
             <strong className="text-lg">Kasir UMKM</strong>
-          </a>
+          </Link>
           <p className="mb-2 text-sm font-semibold text-brand">Selamat datang kembali</p>
           <h1 className="text-3xl font-bold tracking-tight">Masuk ke akunmu</h1>
           <p className="mt-2 text-sm leading-6 text-muted">Kelola transaksi dan pantau usaha dari satu tempat.</p>
