@@ -34,7 +34,11 @@ export function OnboardingForm() {
         : "";
 
       if (code === "23505") {
-        setErrorMessage("Profil usaha ini sudah pernah dibuat. Muat ulang halaman dan coba masuk ke dashboard.");
+        // Older database function versions reject a retry when the account already has a business.
+        // Recover to the dashboard instead of trapping the user on onboarding.
+        router.replace("/");
+        router.refresh();
+        return;
       } else if (code === "42501" || code === "PGRST301") {
         setErrorMessage("Akses ditolak oleh database. Periksa kebijakan akses Supabase untuk pembuatan usaha.");
       } else if (code === "PGRST202" || code === "42883") {
