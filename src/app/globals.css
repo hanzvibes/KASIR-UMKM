@@ -14,3 +14,13 @@ body {
 }
 button, input { font: inherit; }
 button { cursor: pointer; }
+
+/* Clear interaction feedback without adding heavy animation work. */
+a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+a, button { transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease; }
+:focus-visible { outline: 3px solid #80c7a0; outline-offset: 3px; }
+button:disabled { cursor: not-allowed; opacity: 0.6; }
+::selection { background: #d5efdf; color: #17231d; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
