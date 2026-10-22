@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-type CartItem = { product_id: string; quantity: number };
-
 function fail(message: string): never {
   redirect(`/checkout?error=${encodeURIComponent(message)}`);
 }
@@ -19,20 +17,22 @@ export async function checkoutAction(formData: FormData) {
   if (typeof idempotencyKey !== "string" || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
   if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "other") fail("Metode pembayaran tidak valid.");
 
-  let items: CartItem[];
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(rawItems);
-    if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 100) fail("Keranjang harus berisi 1 sampai 100 baris produk.");
-    items = parsed.map((item): CartItem => {
-      if (!item || typeof item.product_id !== "string" || typeof item.quantity !== "number"
-        || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 1000000) {
-        fail("Produk atau jumlah barang tidak valid.");
-      }
-      return { product_id: item.product_id, quantity: item.quantity };
-    });
+    parsed = JSON.parse(rawItems);
   } catch {
     fail("Format keranjang tidak valid.");
   }
+  if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 100) fail("Keranjang harus berisi 1 sampai 100 baris produk.");
+
+  const items = parsed.map((item: unknown) => {
+    if (!item || typeof item !== "object" || !("product_id" in item) || !("quantity" in item)
+      || typeof item.product_id !== "string" || typeof item.quantity !== "number"
+      || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 1000000) {
+      fail("Produk atau jumlah barang tidak valid.");
+    }
+    return { product_id: item.product_id, quantity: item.quantity };
+  });
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -54,7 +54,7 @@ export async function checkoutAction(formData: FormData) {
     if (message.toLowerCase().includes("insufficient stock")) fail("Stok tidak cukup untuk salah satu produk. Periksa stok lalu coba lagi.");
     if (message.toLowerCase().includes("inactive") || message.toLowerCase().includes("product not found")) fail("Ada produk yang sudah nonaktif atau tidak tersedia.");
     if (message.toLowerCase().includes("business access denied")) redirect("/onboarding");
-    fail("Transaksi gagal disimpan. Periksa keranjang dan coba lagi.");
+    fail("Transaksi gagal disimpan. Pastikan migrasi checkout sudah diterapkan pada Supabase development.");
   }
 
   revalidatePath("/");
