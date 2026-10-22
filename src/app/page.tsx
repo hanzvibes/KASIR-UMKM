@@ -1,0 +1,129 @@
+import { ArrowDownRight, ArrowUpRight, Boxes, ChartNoAxesCombined, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
+
+const navItems = [
+  { label: "Dashboard", icon: LayoutDashboard, active: true },
+  { label: "Kasir", icon: ShoppingCart },
+  { label: "Transaksi", icon: ReceiptText },
+  { label: "Produk", icon: Package },
+  { label: "Pengeluaran", icon: Wallet },
+  { label: "Laporan", icon: ChartNoAxesCombined },
+];
+
+const stats = [
+  { label: "Penjualan hari ini", value: "Rp0", detail: "Belum ada transaksi", icon: CircleDollarSign },
+  { label: "Transaksi", value: "0", detail: "Hari ini", icon: ReceiptText },
+  { label: "Estimasi laba kotor", value: "Rp0", detail: "Menunggu data penjualan", icon: ArrowUpRight },
+  { label: "Pengeluaran", value: "Rp0", detail: "Hari ini", icon: ArrowDownRight },
+];
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen md:flex">
+      <aside className="hidden w-64 shrink-0 border-r border-line bg-white p-5 md:flex md:flex-col">
+        <a href="/" className="mb-9 flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={21} /></span>
+          <span><strong className="block text-base">Kasir UMKM</strong><small className="text-muted">Teman usaha harian</small></span>
+        </a>
+        <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-muted">Menu utama</p>
+        <nav className="space-y-1">
+          {navItems.map(({ label, icon: Icon, active }) => (
+            <a key={label} href="#" aria-current={active ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium ${active ? "bg-brand-soft text-brand" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+              <Icon size={18} strokeWidth={1.8} />{label}
+            </a>
+          ))}
+        </nav>
+        <div className="mt-auto rounded-2xl bg-canvas p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Settings size={16} /> Pengaturan</div>
+          <p className="text-xs leading-5 text-muted">Atur profil usaha dan preferensi kasir.</p>
+        </div>
+      </aside>
+
+      <section className="min-w-0 flex-1">
+        <header className="flex items-center justify-between border-b border-line bg-white px-4 py-4 sm:px-7">
+          <div className="flex items-center gap-3 md:hidden">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={19} /></span>
+            <strong>Kasir UMKM</strong>
+          </div>
+          <div className="hidden md:block">
+            <p className="text-sm text-muted">Selamat datang</p>
+            <h1 className="text-lg font-semibold">Ringkasan usaha</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand sm:inline-flex">Paket Gratis</span>
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#e8eee9] text-sm font-semibold">U</div>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-7 md:pb-8">
+          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="mb-1 text-sm text-muted">Kamis, 22 Oktober 2026</p>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h2>
+              <p className="mt-2 text-sm text-muted">Pantau penjualan dan aktivitas usahamu.</p>
+            </div>
+            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-[#196640]">
+              <Plus size={17} /> Siapkan usaha
+            </button>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {stats.map(({ label, value, detail, icon: Icon }) => (
+              <article key={label} className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+                <div className="mb-4 flex items-start justify-between gap-2">
+                  <p className="text-xs font-medium leading-5 text-muted sm:text-sm">{label}</p>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><Icon size={18} /></span>
+                </div>
+                <p className="text-xl font-bold tracking-tight sm:text-2xl">{value}</p>
+                <p className="mt-2 text-xs text-muted">{detail}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+            <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <div><h3 className="font-semibold">Aktivitas penjualan</h3><p className="mt-1 text-sm text-muted">Ringkasan transaksi terbaru</p></div>
+                <span className="rounded-lg bg-canvas p-2 text-muted"><ClipboardList size={18} /></span>
+              </div>
+              <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line px-5 py-8 text-center">
+                <div className="max-w-xs">
+                  <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-soft text-brand"><ChartNoAxesCombined size={23} /></span>
+                  <p className="font-semibold">Belum ada data penjualan</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">Transaksi yang kamu catat nanti akan muncul di sini.</p>
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <div><h3 className="font-semibold">Mulai dari sini</h3><p className="mt-1 text-sm text-muted">Siapkan kasir dalam beberapa langkah</p></div>
+                <span className="rounded-lg bg-canvas p-2 text-muted"><Boxes size={18} /></span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { title: "Buat profil usaha", desc: "Nama dan informasi usaha", icon: Coffee },
+                  { title: "Tambahkan produk", desc: "Nama barang dan harga jual", icon: Package },
+                  { title: "Catat penjualan", desc: "Mulai transaksi pertamamu", icon: CreditCard },
+                ].map(({ title, desc, icon: Icon }, index) => (
+                  <div key={title} className="flex items-center gap-3 rounded-xl border border-line p-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><Icon size={19} /></span>
+                    <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-muted">{desc}</p></div>
+                    <span className="text-xs font-semibold text-muted">0{index + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-white/95 px-2 py-2 backdrop-blur md:hidden">
+          {[navItems[0], navItems[1], navItems[2], navItems[3]].map(({ label, icon: Icon, active }) => (
+            <a key={label} href="#" className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium ${active ? "text-brand" : "text-muted"}`}>
+              <Icon size={19} />{label}
+            </a>
+          ))}
+        </nav>
+      </section>
+    </main>
+  );
+}
