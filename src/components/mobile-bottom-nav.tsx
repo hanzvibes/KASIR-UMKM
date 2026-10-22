@@ -25,7 +25,7 @@ export default function MobileBottomNav() {
     <>
       {menuOpen && (
         <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setMenuOpen(false)} role="presentation">
-          <section role="dialog" aria-label="Menu lainnya" className="absolute inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] rounded-2xl border border-line bg-white p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <section role="dialog" aria-label="Menu lainnya" className={`absolute inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] rounded-2xl border border-line bg-white p-3 shadow-2xl ${pathname === "/dashboard" ? "md:hidden" : "md:inset-x-auto md:bottom-24 md:left-1/2 md:right-auto md:w-[640px] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"}`} onClick={(event) => event.stopPropagation()}>
             <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">Menu lainnya</p>
             <div className="space-y-1">
               {moreItems.map(({ label, href, Icon, description }) => (
@@ -39,7 +39,7 @@ export default function MobileBottomNav() {
           </section>
         </div>
       )}
-      <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-white/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-6px_24px_rgba(23,35,29,0.05)] backdrop-blur md:hidden">
+      <nav aria-label="Navigasi utama" className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-white/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-6px_24px_rgba(23,35,29,0.05)] backdrop-blur md:inset-x-auto md:left-1/2 md:right-auto md:bottom-4 md:w-[640px] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2 md:rounded-2xl md:border md:px-3 md:shadow-xl ${pathname === "/dashboard" ? "md:hidden" : ""}`}>
         {primaryItems.map(({ label, short, href, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (

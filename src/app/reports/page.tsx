@@ -45,7 +45,7 @@ export default async function ReportsPage() {
   const expensesErrorMessage = expensesError ? "Data pengeluaran gagal dimuat." : null;
 
   return (
-    <main className="min-h-screen bg-canvas">
+    <main className="min-h-screen bg-canvas pb-24 md:pb-28">
       <header className="border-b border-line bg-white"><div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-7"><Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link><div><h1 className="text-lg font-bold">Laporan usaha</h1><p className="text-sm text-muted">Ringkasan bulan {month.label}.</p></div></div></header>
       <div className="mx-auto max-w-6xl space-y-6 p-4 pb-24 sm:p-7">
         {(salesErrorMessage || expensesErrorMessage) && <div role="alert" className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{salesErrorMessage && <p>{salesErrorMessage}</p>}{expensesErrorMessage && <p>{expensesErrorMessage}</p>}</div>}

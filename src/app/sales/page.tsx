@@ -27,7 +27,7 @@ export default async function SalesHistoryPage() {
     .limit(100);
 
   return (
-    <main className="min-h-screen bg-canvas">
+    <main className="min-h-screen bg-canvas pb-24 md:pb-28">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-7">
           <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
