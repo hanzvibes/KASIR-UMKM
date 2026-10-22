@@ -22,8 +22,9 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
     .eq("id", id).maybeSingle();
   if (error || !sale) notFound();
 
-  const { data: membership } = await supabase.from("kasir_business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
-  if (!membership || membership.business_id !== sale.business_id) notFound();
+  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+  const membership = memberships?.[0];
+  if (membershipError || !membership || membership.business_id !== sale.business_id) notFound();
   const { data: items, error: itemsError } = await supabase.from("kasir_sale_items")
     .select("id, product_name, unit, quantity, unit_price, line_total")
     .eq("sale_id", sale.id).order("created_at");
