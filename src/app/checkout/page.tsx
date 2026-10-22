@@ -43,7 +43,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
         </div>
       </header>
       <div className="mx-auto max-w-7xl space-y-5 p-4 pb-24 sm:p-7">
-        {(error || categoriesError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori belum bisa dimuat. Pastikan migrasi awal sudah diterapkan di Supabase development.</p>}
+        {(error || categoriesError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
         <CheckoutClient products={products ?? []} categories={categories ?? []} idempotencyKey={randomUUID()} errorMessage={params.error} dataError={Boolean(error || categoriesError)} />
       </div>
       <MobileBottomNav />
