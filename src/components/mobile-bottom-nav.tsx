@@ -2,31 +2,60 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Package, ReceiptText, ShoppingCart, Wallet } from "lucide-react";
+import { BarChart3, LayoutDashboard, MoreHorizontal, Package, ReceiptText, ShoppingCart, Wallet } from "lucide-react";
+import { useState } from "react";
 
-const items = [
+const primaryItems = [
   { label: "Kasir", short: "Kasir", href: "/checkout", Icon: ShoppingCart },
   { label: "Transaksi", short: "Transaksi", href: "/sales", Icon: ReceiptText },
   { label: "Produk", short: "Produk", href: "/products", Icon: Package },
-  { label: "Pengeluaran", short: "Biaya", href: "/expenses", Icon: Wallet },
-  { label: "Laporan", short: "Laporan", href: "/reports", Icon: BarChart3 },
+];
+const moreItems = [
+  { label: "Ringkasan usaha", href: "/dashboard", Icon: LayoutDashboard, description: "Lihat performa usaha" },
+  { label: "Pengeluaran", href: "/expenses", Icon: Wallet, description: "Catat biaya operasional" },
+  { label: "Laporan", href: "/reports", Icon: BarChart3, description: "Rekap penjualan dan biaya" },
 ];
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const inMoreSection = moreItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
-    <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-white/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-6px_24px_rgba(23,35,29,0.05)] backdrop-blur md:hidden">
-      {items.map(({ label, short, href, Icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
-        return (
-          <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined}
-            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${active ? "text-brand" : "text-muted hover:text-ink"}`}>
-            <Icon size={19} strokeWidth={active ? 2.3 : 1.8} />
-            <span>{short}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setMenuOpen(false)} role="presentation">
+          <section role="dialog" aria-label="Menu lainnya" className="absolute inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] rounded-2xl border border-line bg-white p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">Menu lainnya</p>
+            <div className="space-y-1">
+              {moreItems.map(({ label, href, Icon, description }) => (
+                <Link key={href} href={href} onClick={() => setMenuOpen(false)}
+                  className={`flex items-center gap-3 rounded-xl p-3 transition-colors ${pathname === href ? "bg-brand-soft text-brand" : "text-ink hover:bg-canvas"}`}>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas"><Icon size={19} /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{label}</span><span className="mt-0.5 block text-xs text-muted">{description}</span></span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+      <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-white/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-6px_24px_rgba(23,35,29,0.05)] backdrop-blur md:hidden">
+        {primaryItems.map(({ label, short, href, Icon }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${active ? "text-brand" : "text-muted hover:text-ink"}`}>
+              <Icon size={19} strokeWidth={active ? 2.3 : 1.8} />
+              <span>{short}</span>
+            </Link>
+          );
+        })}
+        <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Menu lainnya"
+          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-[10px] font-medium transition-colors active:scale-95 ${menuOpen || inMoreSection ? "text-brand" : "text-muted hover:text-ink"}`}>
+          <MoreHorizontal size={20} strokeWidth={menuOpen || inMoreSection ? 2.3 : 1.8} />
+          <span>Lainnya</span>
+        </button>
+      </nav>
+    </>
   );
 }
