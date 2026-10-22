@@ -27,7 +27,7 @@ export function LoginForm() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace("/");
+        router.replace("/checkout");
         router.refresh();
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password });
