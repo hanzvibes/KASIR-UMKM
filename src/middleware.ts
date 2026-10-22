@@ -38,9 +38,9 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname === "/login") {
     const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+    if (membershipError) return response;
     const destination = request.nextUrl.clone();
-    // Do not send existing users into onboarding when membership lookup itself failed.
-    destination.pathname = membershipError ? pathname : memberships?.length ? "/" : "/onboarding";
+    destination.pathname = memberships?.length ? "/" : "/onboarding";
     destination.search = "";
     return NextResponse.redirect(destination);
   }
