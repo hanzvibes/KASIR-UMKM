@@ -67,6 +67,7 @@ create table if not exists public.kasir_sale_items (
   sale_id uuid not null,
   product_id uuid,
   product_name text not null,
+  unit text not null default 'pcs',
   quantity numeric(14,3) not null check (quantity > 0),
   unit_price numeric(14,0) not null check (unit_price >= 0),
   unit_cost numeric(14,0) check (unit_cost is null or unit_cost >= 0),
@@ -89,6 +90,7 @@ alter table public.kasir_sales add column if not exists status text not null def
 alter table public.kasir_sales add column if not exists voided_at timestamptz;
 alter table public.kasir_sales add column if not exists voided_by uuid references auth.users(id);
 alter table public.kasir_sales add column if not exists void_reason text;
+alter table public.kasir_sale_items add column if not exists unit text not null default 'pcs';
 alter table public.kasir_sale_items add column if not exists unit_cost numeric(14,0);
 
 create index if not exists kasir_business_members_user_idx on public.kasir_business_members(user_id);
@@ -198,8 +200,8 @@ begin
     end if;
     line_total := round(product_row.price * qty);
     sale_total := sale_total + line_total;
-    insert into public.kasir_sale_items(business_id, sale_id, product_id, product_name, quantity, unit_price, unit_cost, line_total)
-      values (p_business_id, sale_id, product_row.id, product_row.name, qty, product_row.price, product_row.cost_price, line_total);
+    insert into public.kasir_sale_items(business_id, sale_id, product_id, product_name, unit, quantity, unit_price, unit_cost, line_total)
+      values (p_business_id, sale_id, product_row.id, product_row.name, product_row.unit, qty, product_row.price, product_row.cost_price, line_total);
   end loop;
   update public.kasir_sales set total_amount=sale_total where id=sale_id;
   return jsonb_build_object('id', sale_id, 'total_amount', sale_total, 'duplicate', false);

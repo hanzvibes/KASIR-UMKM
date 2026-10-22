@@ -25,7 +25,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   const { data: membership } = await supabase.from("kasir_business_members").select("business_id, role").eq("user_id", user.id).limit(1).maybeSingle();
   if (!membership || membership.business_id !== sale.business_id) notFound();
   const { data: items, error: itemsError } = await supabase.from("kasir_sale_items")
-    .select("id, product_name, quantity, unit_price, line_total")
+    .select("id, product_name, unit, quantity, unit_price, line_total")
     .eq("sale_id", sale.id).order("created_at");
 
   if (itemsError) notFound();
