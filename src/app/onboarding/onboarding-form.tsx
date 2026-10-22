@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 export function OnboardingForm() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [businessType, setBusinessType] = useState("lainnya");
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -16,9 +17,10 @@ export function OnboardingForm() {
     setBusy(true);
     try {
       const supabase = createClient();
+      const loadSample = new FormData(event.currentTarget).get("load_sample") === "on";
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Sesi login tidak ditemukan. Silakan masuk lagi.");
-      const { error } = await supabase.rpc("kasir_create_business", { business_name: name.trim() });
+      const { error } = await supabase.rpc("kasir_create_business", { business_name: name.trim(), business_type: businessType, p_load_sample: loadSample });
       if (error) throw error;
       router.replace("/checkout");
       router.refresh();
@@ -58,6 +60,16 @@ export function OnboardingForm() {
       <div>
         <label htmlFor="business-name" className="mb-2 block text-sm font-medium">Nama usaha</label>
         <input id="business-name" required minLength={1} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} placeholder="Contoh: Kedai Kopi Rehan" className="w-full rounded-xl border border-line px-4 py-3 outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
+      </div>
+      <label className="flex items-start gap-3 rounded-xl border border-line p-3 text-sm">
+        <input name="load_sample" type="checkbox" className="mt-0.5 h-4 w-4 accent-[#1d754b]" />
+        <span><strong className="block">Isi contoh produk</strong><span className="mt-1 block text-muted">Tambahkan 3 contoh produk yang bisa diubah atau dihapus nanti.</span></span>
+      </label>
+      <div>
+        <label htmlFor="business-type" className="mb-2 block text-sm font-medium">Jenis usaha</label>
+        <select id="business-type" value={businessType} onChange={(event) => setBusinessType(event.target.value)} className="w-full rounded-xl border border-line bg-white px-4 py-3">
+          <option value="makanan">Makanan</option><option value="minuman">Minuman</option><option value="retail">Toko / retail</option><option value="jasa">Jasa</option><option value="lainnya">Lainnya</option>
+        </select>
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">{errorMessage}</p>}
       <button disabled={busy} className="w-full rounded-xl bg-brand px-4 py-3 font-semibold text-white transition hover:bg-[#196640] disabled:opacity-60">

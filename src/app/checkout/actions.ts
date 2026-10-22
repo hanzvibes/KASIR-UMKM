@@ -13,10 +13,14 @@ export async function checkoutAction(formData: FormData) {
   const idempotencyKey = formData.get("idempotency_key");
   const paymentMethod = formData.get("payment_method");
   const cashReceivedRaw = formData.get("cash_received");
+  const discountRaw = formData.get("discount");
 
   if (typeof rawItems !== "string" || rawItems.length > 30000) fail("Keranjang tidak valid.");
   if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
-  if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "other") fail("Metode pembayaran tidak valid.");
+  if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "qris") fail("Metode pembayaran tidak valid.");
+  if (typeof discountRaw !== "string" || !/^\d+$/.test(discountRaw)) fail("Nominal diskon tidak valid.");
+  const discount = Number(discountRaw);
+  if (!Number.isSafeInteger(discount) || discount < 0) fail("Diskon harus berupa rupiah bulat nol atau lebih.");
   const cashReceived = paymentMethod === "cash" && typeof cashReceivedRaw === "string" && /^[0-9]+$/.test(cashReceivedRaw) ? Number(cashReceivedRaw) : null;
   if (paymentMethod === "cash" && (cashReceived === null || !Number.isSafeInteger(cashReceived) || cashReceived < 0)) fail("Nominal uang diterima harus berupa rupiah bulat nol atau lebih.");
 
@@ -68,6 +72,7 @@ export async function checkoutAction(formData: FormData) {
     p_payment_method: paymentMethod,
     p_idempotency_key: idempotencyKey,
     p_cash_received: cashReceived,
+    p_discount: discount,
   });
 
   if (error || !data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string") {

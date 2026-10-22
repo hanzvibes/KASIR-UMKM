@@ -1,0 +1,5 @@
+import Link from "next/link";
+
+export default function TermsPage() {
+  return <main className="mx-auto min-h-screen max-w-3xl px-5 py-10"><Link href="/help" className="text-sm text-brand underline">← Kembali ke bantuan</Link><h1 className="mt-6 text-3xl font-bold">Syarat Penggunaan</h1><p className="mt-2 text-sm text-muted">Terakhir diperbarui: 22 Oktober 2026</p><div className="mt-8 space-y-6 text-sm leading-7"><section><h2 className="font-bold">Penggunaan akun</h2><p>Gunakan akun sesuai peran yang diberikan pemilik usaha. Jaga kerahasiaan kata sandi dan segera minta pemilik menonaktifkan akses yang tidak lagi digunakan.</p></section><section><h2 className="font-bold">Keakuratan catatan</h2><p>Pengguna bertanggung jawab memeriksa harga, stok, metode pembayaran, dan hitung kas. Laporan aplikasi membantu pencatatan operasional dan tidak menggantikan pembukuan atau nasihat profesional.</p></section><section><h2 className="font-bold">Ketersediaan layanan</h2><p>Aplikasi memerlukan koneksi internet untuk menyimpan transaksi. Jangan menganggap penjualan tersimpan sebelum aplikasi menampilkan konfirmasi berhasil.</p></section></div></main>;
+}

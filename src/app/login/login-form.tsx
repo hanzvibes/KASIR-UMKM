@@ -27,6 +27,11 @@ export function LoginForm() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const { data: allowed, error: accessError } = await supabase.rpc("kasir_login_allowed");
+        if (accessError || allowed === false) {
+          await supabase.auth.signOut();
+          throw new Error(allowed === false ? "Akun kasir ini sedang dinonaktifkan. Hubungi pemilik usaha." : "Status akun belum bisa diperiksa. Coba lagi sebentar.");
+        }
         router.replace("/checkout");
         router.refresh();
       } else {

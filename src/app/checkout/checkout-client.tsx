@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
 import { checkoutAction } from "./actions";
 
@@ -23,10 +24,20 @@ const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
   style: "currency", currency: "IDR", maximumFractionDigits: 0,
 }).format(value);
 
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
 export default function CheckoutClient({
   products,
   categories,
   businessId,
+  qrisImageUrl,
   idempotencyKey,
   errorMessage,
   clearDraft = false,
@@ -36,6 +47,7 @@ export default function CheckoutClient({
   products: Product[];
   categories: Category[];
   businessId: string;
+  qrisImageUrl: string | null;
   idempotencyKey: string;
   errorMessage?: string;
   clearDraft?: boolean;
@@ -46,6 +58,7 @@ export default function CheckoutClient({
   const [activeIdempotencyKey, setActiveIdempotencyKey] = useState(idempotencyKey);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
+  const [discount, setDiscount] = useState("0");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
   const [submitting, setSubmitting] = useState(false);
@@ -55,10 +68,12 @@ export default function CheckoutClient({
   const clearedSuccessDraft = useRef(false);
   const [catalogPreferences, setCatalogPreferences] = useState<CatalogPreferences>({ favorites: [], picks: {} });
   const [preferencesReady, setPreferencesReady] = useState(false);
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   const draftKey = `kasir-umkm:checkout-draft-v1:${businessId}`;
   const legacyDraftKey = "kasir-umkm:checkout-draft-v1";
   const successMarkerKey = `kasir-umkm:checkout-cleared-sale-v1:${businessId}`;
   const preferencesKey = `kasir-umkm:catalog-preferences-v1:${businessId}`;
+  const offlineProductsKey = `kasir-umkm:offline-products-v1:${businessId}`;
 
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const filteredProducts = useMemo(() => {
@@ -75,10 +90,12 @@ export default function CheckoutClient({
     return sum + Math.round(Number(product?.price ?? 0) * line.quantity);
   }, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const discountAmount = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) ? Number(discount) : 0;
+  const total = Math.max(0, subtotal - discountAmount);
   const quickCashAmounts = [...new Set([
-    subtotal,
-    Math.ceil(subtotal / 10_000) * 10_000,
-    Math.ceil(subtotal / 20_000) * 20_000,
+    total,
+    Math.ceil(total / 10_000) * 10_000,
+    Math.ceil(total / 20_000) * 20_000,
     50_000,
     100_000,
   ].filter((amount) => amount >= subtotal && amount > 0))];
@@ -99,6 +116,8 @@ export default function CheckoutClient({
           sessionStorage.removeItem(draftKey);
           sessionStorage.removeItem(legacyDraftKey);
           sessionStorage.setItem(successMarkerKey, successSaleId);
+          // This effect hydrates browser storage after a successful server action.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setCart([]);
           setActiveIdempotencyKey(idempotencyKey);
           setPaymentMethod("cash");
@@ -130,7 +149,7 @@ export default function CheckoutClient({
         if (typeof draft.idempotencyKey === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft.idempotencyKey)) {
           setActiveIdempotencyKey(draft.idempotencyKey);
         }
-        if (draft.paymentMethod === "cash" || draft.paymentMethod === "transfer" || draft.paymentMethod === "other") setPaymentMethod(draft.paymentMethod);
+        if (draft.paymentMethod === "cash" || draft.paymentMethod === "transfer" || draft.paymentMethod === "qris") setPaymentMethod(draft.paymentMethod);
         if (typeof draft.cashReceived === "string" && /^[0-9]*$/.test(draft.cashReceived)) setCashReceived(draft.cashReceived);
       }
     } catch {
@@ -148,6 +167,8 @@ export default function CheckoutClient({
         const picks: Record<string, number> = value.picks && typeof value.picks === "object"
           ? Object.fromEntries(Object.entries(value.picks).filter(([id, count]) => productById.has(id) && typeof count === "number" && Number.isSafeInteger(count) && count > 0)) as Record<string, number>
           : {};
+        // This effect hydrates per-device preferences after client mount.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCatalogPreferences({
           favorites: Array.isArray(value.favorites) ? value.favorites.filter((id): id is string => typeof id === "string" && productById.has(id)) : [],
           picks,
@@ -172,6 +193,19 @@ export default function CheckoutClient({
       // Checkout remains usable when browser storage is unavailable.
     }
   }, [activeIdempotencyKey, cart, cashReceived, clearDraft, draftKey, draftReady, paymentMethod]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(offlineProductsKey, JSON.stringify(products.map(({ id, name, sku, unit, price, stock_qty }) => ({ id, name, sku, unit, price, stock_qty }))));
+      localStorage.setItem("kasir-umkm:offline-active-business-v1", businessId);
+      for (let index = localStorage.length - 1; index >= 0; index--) {
+        const key = localStorage.key(index);
+        if (key?.startsWith("kasir-umkm:offline-products-v1:") && key !== offlineProductsKey) localStorage.removeItem(key);
+      }
+    } catch {
+      // The online checkout remains available if local product storage is full or blocked.
+    }
+  }, [businessId, offlineProductsKey, products]);
 
   useEffect(() => {
     if (!preferencesReady) return;
@@ -238,6 +272,10 @@ export default function CheckoutClient({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (!navigator.onLine) {
+      event.preventDefault();
+      return;
+    }
     if (submitting || cart.length === 0) {
       event.preventDefault();
       return;
@@ -295,16 +333,19 @@ export default function CheckoutClient({
       <div className="mt-3 border-t border-line pt-4">
         <div className="flex items-end justify-between gap-3">
           <span className="text-sm text-muted">Total tagihan</span>
-          <strong className="text-2xl font-bold tracking-tight tabular-nums">{rupiah(subtotal)}</strong>
+          <strong className="text-2xl font-bold tracking-tight tabular-nums">{rupiah(total)}</strong>
         </div>
         <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
           <input type="hidden" name="items" value={serializedItems} />
           <input type="hidden" name="idempotency_key" value={activeIdempotencyKey} />
+          <label className="grid gap-1.5 text-sm font-medium">Diskon (Rp, opsional)
+            <input name="discount" type="number" min="0" max={subtotal} step="1" value={discount} onChange={(event) => setDiscount(event.target.value)} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
+          </label>
           <div className="grid grid-cols-3 gap-2" aria-label="Metode pembayaran">
             {[
               { value: "cash", label: "Tunai" },
               { value: "transfer", label: "Transfer" },
-              { value: "other", label: "Lainnya" },
+              { value: "qris", label: "QRIS" },
             ].map((method) => (
               <button key={method.value} type="button" aria-pressed={paymentMethod === method.value}
                 onClick={() => setPaymentMethod(method.value)}
@@ -317,29 +358,30 @@ export default function CheckoutClient({
           {paymentMethod === "cash" && (
             <div className="space-y-2">
               <label className="grid gap-1.5 text-sm font-medium">Uang diterima
-                <input name="cash_received" type="number" inputMode="numeric" min={subtotal} step="1" required
+                <input name="cash_received" type="number" inputMode="numeric" min={total} step="1" required
                   value={cashReceived} onChange={(event) => setCashReceived(event.target.value)}
-                  placeholder={String(subtotal || 0)} className="w-full rounded-xl border border-line px-3 py-3 text-base font-normal outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
+                  placeholder={String(total || 0)} className="w-full rounded-xl border border-line px-3 py-3 text-base font-normal outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
               </label>
-              {subtotal > 0 && (
+              {total > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {quickCashAmounts.map((amount) => (
                     <button key={amount} type="button" onClick={() => setCashReceived(String(amount))}
                       className="min-h-10 rounded-full border border-line px-3 py-2 text-xs font-semibold text-muted active:bg-canvas">
-                      {amount === subtotal ? "Uang pas" : rupiah(amount)}
+                        {amount === total ? "Uang pas" : rupiah(amount)}
                     </button>
                   ))}
                 </div>
               )}
               <div className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5 text-sm">
                 <span className="text-muted">Kembalian</span>
-                <strong className="tabular-nums">{cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= subtotal ? rupiah(Number(cashReceived) - subtotal) : "—"}</strong>
+                <strong className="tabular-nums">{cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= total ? rupiah(Number(cashReceived) - total) : "—"}</strong>
               </div>
             </div>
           )}
-          <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting}
+          {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
+          <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-soft transition active:scale-[0.99] hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">
-            {submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan transaksi</>}
+            {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan transaksi</>}
           </button>
           <p className="text-center text-[11px] leading-4 text-muted">Harga dan stok diverifikasi ulang saat transaksi disimpan.</p>
         </form>

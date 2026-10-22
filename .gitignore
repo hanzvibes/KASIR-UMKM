@@ -1,5 +1,6 @@
 node_modules
 .next
+public/sw.js
 out
 dist
 coverage
@@ -12,3 +13,5 @@ coverage
 /freebuff-sites-build/
 /.open-next/
 /.wrangler/
+supabase/.temp/
+*.tsbuildinfo

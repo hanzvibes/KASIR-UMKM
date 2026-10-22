@@ -3,7 +3,8 @@ import { ArrowLeft, Boxes, PackagePlus, Tags } from "lucide-react";
 import { redirect } from "next/navigation";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
-import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive } from "./actions";
+import VariantEditor from "./variant-editor";
+import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive, archiveProduct } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string; search?: string; page?: string }>;
 
@@ -15,6 +16,8 @@ const successMessages: Record<string, string> = {
   product_updated: "Produk berhasil diperbarui.",
   product_activated: "Produk diaktifkan.",
   product_deactivated: "Produk dinonaktifkan.",
+  product_archived: "Produk diarsipkan. Riwayat penjualan tetap tersimpan.",
+  variants_saved: "Varian produk berhasil disimpan.",
 };
 
 const money = (value: number | string | null) =>
@@ -41,7 +44,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const page = Number.isSafeInteger(parsedPage) && parsedPage > 0 ? Math.min(parsedPage, 10_000) : 1;
   const pageSize = 30;
   let productQuery = supabase.from("kasir_products").select("id, name, sku, category_id, unit, price, cost_price, stock_qty, track_stock, is_active")
-    .eq("business_id", membership.business_id);
+    .eq("business_id", membership.business_id).is("deleted_at", null);
   if (searchWords.length > 0) productQuery = productQuery.or(searchWords.flatMap((word) => [`name.ilike.%${word}%`, `sku.ilike.%${word}%`]).join(","));
 
   const [{ data: categories, error: categoriesError }, { data: products, error: productsError }] = await Promise.all([
@@ -53,6 +56,19 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const fetchedProducts = products ?? [];
   const hasNextPage = fetchedProducts.length > pageSize;
   const productList = fetchedProducts.slice(0, pageSize);
+  const productIds = productList.map((product) => product.id);
+  const { data: variantGroups, error: variantsError } = productIds.length
+    ? await supabase.from("kasir_product_variant_groups").select("id, product_id, name, required").eq("business_id", membership.business_id).in("product_id", productIds)
+    : { data: [], error: null };
+  const groupIds = (variantGroups ?? []).map((group) => group.id);
+  const { data: variantOptions, error: optionsError } = groupIds.length
+    ? await supabase.from("kasir_product_variant_options").select("group_id, name, price_delta").eq("business_id", membership.business_id).in("group_id", groupIds).order("name")
+    : { data: [], error: null };
+  const productVariants = new Map((variantGroups ?? []).map((group) => [group.product_id, {
+    name: group.name,
+    required: group.required,
+    options: (variantOptions ?? []).filter((option) => option.group_id === group.id).map((option) => ({ name: option.name, price_delta: Number(option.price_delta) })),
+  }]));
   const categoryNames = new Map(categoryList.map((category) => [category.id, category.name]));
   const canManage = membership.role === "owner";
   const pageHref = (nextPage: number) => `/products?${new URLSearchParams({ ...(searchTerm ? { search: searchTerm } : {}), page: String(nextPage) })}`;
@@ -69,7 +85,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       <div className="mx-auto max-w-7xl space-y-6 p-4 pb-24 sm:p-7">
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.success && successMessages[params.success] && <p role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessages[params.success]}</p>}
-        {(categoriesError || productsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
+        {(categoriesError || productsError || variantsError || optionsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk, kategori, atau varian gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database dan migrasi.</p>}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
           <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
@@ -153,7 +169,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                     <label className="flex items-center gap-2 text-xs font-semibold"><input name="track_stock" type="checkbox" defaultChecked={product.track_stock} className="accent-brand" /> Lacak stok</label>
                     <button className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2">Simpan perubahan</button>
                   </form>}
-                  {canManage && <form action={setProductActive} className="mt-2"><input type="hidden" name="id" value={product.id} /><input type="hidden" name="active" value={String(!product.is_active)} /><button className="rounded-lg border border-line px-3 py-2 text-xs font-semibold">{product.is_active ? "Nonaktifkan produk" : "Aktifkan produk"}</button></form>}
+                  {canManage ? <div className="mt-4"><h3 className="text-sm font-semibold">Varian / add-on</h3><p className="mt-1 text-xs text-muted">Atur satu kelompok pilihan dengan selisih harga.</p><VariantEditor productId={product.id} initial={productVariants.get(product.id) ?? null} /></div> : (productVariants.get(product.id)?.options.length ?? 0) > 0 ? <p className="mt-3 text-xs text-muted">Pilihan: {productVariants.get(product.id)?.options.map((option) => option.name).join(", ")}</p> : null}
+                  {canManage && <div className="mt-2 flex flex-wrap gap-2"><form action={setProductActive}><input type="hidden" name="id" value={product.id} /><input type="hidden" name="active" value={String(!product.is_active)} /><button className="rounded-lg border border-line px-3 py-2 text-xs font-semibold">{product.is_active ? "Nonaktifkan produk" : "Aktifkan produk"}</button></form><form action={archiveProduct}><input type="hidden" name="id" value={product.id} /><button className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700">Arsipkan</button></form></div>}
                 </details>
               ))}
             </div>

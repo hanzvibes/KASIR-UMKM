@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import MobileBottomNav from "@/components/mobile-bottom-nav";
 import PrintReceiptButton from "./print-button";
 import { voidSaleAction } from "../actions";
+import ShareReceipt from "./share-receipt";
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; success?: string }>;
@@ -22,7 +23,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from("kasir_sales")
-      .select("id, business_id, payment_method, total_amount, cash_received, change_due, created_at, status, void_reason")
+      .select("id, business_id, payment_method, total_amount, discount, cash_received, change_due, created_at, status, void_reason, public_receipt_token, invoice_no")
       .eq("id", id).maybeSingle(),
     supabase.rpc("kasir_get_my_business"),
   ]);
@@ -37,7 +38,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   if (itemsError) notFound();
 
   const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at));
-  const paymentLabel = sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya";
+  const paymentLabel = sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "QRIS";
   const isVoided = sale.status === "voided";
 
   return (
@@ -52,7 +53,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-brand"><CheckCircle2 size={26} /></span>
             <h1 className="mt-3 text-xl font-bold">{isVoided ? "Transaksi dibatalkan" : "Transaksi berhasil"}</h1>
             <p className="mt-1 text-sm text-muted">Struk pembayaran</p>
-            <p className="mt-4 font-mono text-sm">#{sale.id.slice(0, 8).toUpperCase()}</p>
+            <p className="mt-4 font-mono text-sm">{sale.invoice_no ?? `#${sale.id.slice(0, 8).toUpperCase()}`}</p>
             <p className="mt-1 text-xs text-muted">{date}</p>
           </div>
           <div className="my-6 border-y border-dashed border-line py-4 text-sm">
@@ -68,6 +69,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
             </div>)}
           </div>
           <div className="mt-6 border-t border-line pt-4"><div className="flex justify-between text-base"><span className="font-semibold">Total</span><strong className="text-xl">{money(sale.total_amount)}</strong></div></div>
+          {Number(sale.discount) > 0 && <p className="mt-2 text-right text-sm text-muted">Diskon: −{money(sale.discount)}</p>}
           {isVoided && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">Alasan pembatalan: {sale.void_reason || "—"}</p>}
           {query.success === "voided" && <p role="status" className="mt-4 rounded-xl bg-green-50 p-3 text-sm text-green-800">Transaksi dibatalkan dan stok tercatat kembali.</p>}
           {query.error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{query.error === "owner_only" ? "Hanya pemilik usaha yang boleh membatalkan transaksi." : query.error === "invalid_reason" ? "Alasan wajib diisi (3–240 karakter)." : query.error === "already_voided" ? "Transaksi ini sudah dibatalkan." : "Pembatalan gagal. Pastikan migrasi pembatalan sudah diterapkan."}</p>}
@@ -77,6 +79,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
         <div className="mt-4 flex flex-col gap-3 sm:flex-row print:hidden">
           <Link href="/checkout" prefetch={false} className="flex-1 rounded-xl bg-brand px-4 py-3 text-center text-sm font-semibold text-white">Transaksi baru</Link>
           <Link href="/sales" prefetch={false} className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-center text-sm font-semibold">Riwayat transaksi</Link>
+          {!isVoided && <ShareReceipt token={sale.public_receipt_token} invoice={sale.invoice_no} total={Number(sale.total_amount)} />}
         </div>
       </div>
       <MobileBottomNav />

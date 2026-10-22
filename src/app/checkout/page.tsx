@@ -22,17 +22,25 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
 
+  const { data: activeShift, error: shiftError } = await supabase.from("kasir_shifts")
+    .select("id, opened_at, opening_cash").eq("business_id", membership.business_id)
+    .eq("cashier_id", user.id).eq("status", "open").maybeSingle();
+  if (shiftError) return <main className="grid min-h-screen place-items-center p-6"><p role="alert">Status kasir gagal dimuat. Muat ulang halaman.</p></main>;
+  if (!activeShift) redirect("/shifts");
+
   const [{ data: products, error }, { data: categories, error: categoriesError }] = await Promise.all([
     supabase.from("kasir_products")
       .select("id, name, sku, category_id, unit, price, stock_qty, track_stock")
       .eq("business_id", membership.business_id)
       .eq("is_active", true)
+      .is("deleted_at", null)
       .order("name"),
     supabase.from("kasir_categories")
       .select("id, name")
       .eq("business_id", membership.business_id)
       .order("name"),
   ]);
+  const { data: business } = await supabase.from("kasir_businesses").select("qris_image_url").eq("id", membership.business_id).maybeSingle();
   const { data: completedSale } = params.success
     ? await supabase.from("kasir_sales").select("id, total_amount").eq("id", params.success).eq("business_id", membership.business_id).eq("status", "completed").maybeSingle()
     : { data: null };
@@ -48,7 +56,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       <div className="mx-auto max-w-7xl space-y-5 p-4 pb-24 sm:p-7">
         {(error || categoriesError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
         {completedSale && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900"><span className="flex items-center gap-2 font-semibold"><CheckCircle2 size={18} /> Transaksi berhasil disimpan · {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(completedSale.total_amount))}</span><Link prefetch={false} href={`/sales/${completedSale.id}`} className="font-semibold underline underline-offset-2">Lihat struk</Link></div>}
-        <CheckoutClient key={completedSale?.id ?? "active-checkout"} products={products ?? []} categories={categories ?? []} businessId={membership.business_id} idempotencyKey={randomUUID()} errorMessage={params.error} clearDraft={Boolean(completedSale)} successSaleId={completedSale?.id} dataError={Boolean(error || categoriesError)} />
+        <CheckoutClient key={completedSale?.id ?? "active-checkout"} products={products ?? []} categories={categories ?? []} businessId={membership.business_id} qrisImageUrl={business?.qris_image_url ?? null} idempotencyKey={randomUUID()} errorMessage={params.error} clearDraft={Boolean(completedSale)} successSaleId={completedSale?.id} dataError={Boolean(error || categoriesError)} />
       </div>
       <MobileBottomNav />
     </main>

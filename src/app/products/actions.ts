@@ -144,3 +144,57 @@ export async function setProductActive(formData: FormData) {
   revalidatePath("/products");
   redirect(`/products?success=${active ? "product_activated" : "product_deactivated"}`);
 }
+
+export async function archiveProduct(formData: FormData) {
+  const id = textValue(formData, "id");
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) fail("Produk tidak valid.");
+  const { supabase, businessId } = await getBusinessContext();
+  const { error } = await supabase.from("kasir_products").update({ deleted_at: new Date().toISOString(), is_active: false }).eq("id", id).eq("business_id", businessId);
+  if (error) fail("Produk gagal diarsipkan.");
+  revalidatePath("/products");
+  revalidatePath("/checkout");
+  redirect("/products?success=product_archived");
+}
+
+export async function saveProductVariants(formData: FormData) {
+  const productId = textValue(formData, "product_id");
+  const groupName = textValue(formData, "group_name");
+  const required = textValue(formData, "required") === "true";
+  const rawOptions = textValue(formData, "options");
+  if (!/^[0-9a-f-]{36}$/i.test(productId)) fail("Produk tidak valid.");
+
+  let options: unknown;
+  try {
+    options = JSON.parse(rawOptions);
+  } catch {
+    fail("Daftar pilihan varian tidak valid.");
+  }
+  if (!Array.isArray(options) || options.length > 12) fail("Varian dapat berisi maksimal 12 pilihan.");
+  const parsedOptions = options.map((option: unknown) => {
+    if (!option || typeof option !== "object" || !("name" in option) || !("price_delta" in option)
+      || typeof option.name !== "string" || typeof option.price_delta !== "number"
+      || !Number.isSafeInteger(option.price_delta) || Math.abs(option.price_delta) > 1_000_000_000) {
+      fail("Nama dan selisih harga setiap pilihan harus valid.");
+    }
+    const name = option.name.trim();
+    if (!name || name.length > 80) fail("Nama pilihan wajib diisi (maksimal 80 karakter).");
+    return { name, price_delta: option.price_delta };
+  });
+  if (parsedOptions.length > 0 && (!groupName || groupName.length > 80)) fail("Nama kelompok varian wajib diisi (maksimal 80 karakter).");
+
+  const { supabase } = await getBusinessContext();
+  const { error } = await supabase.rpc("kasir_save_product_variants", {
+    p_product_id: productId,
+    p_group_name: groupName || null,
+    p_required: required,
+    p_options: parsedOptions,
+  });
+  if (error) {
+    if (error.message.toLowerCase().includes("product not found")) fail("Produk tidak ditemukan atau sudah diarsipkan.");
+    if (error.code === "PGRST202" || error.code === "42883") fail("Fungsi varian belum tersedia. Terapkan migrasi Supabase terbaru.");
+    fail("Varian gagal disimpan. Periksa pilihan dan coba lagi.");
+  }
+  revalidatePath("/products");
+  revalidatePath("/checkout");
+  redirect("/products?success=variants_saved");
+}

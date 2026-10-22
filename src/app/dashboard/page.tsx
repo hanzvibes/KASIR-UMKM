@@ -51,23 +51,34 @@ export default async function HomePage() {
   const next = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const from = start.toISOString();
   const to = next.toISOString();
-  const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }, { data: recentSales }] = await Promise.all([
+  const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }, { data: recentSales }, { data: lowStock, error: stockError }] = await Promise.all([
     supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
-      .eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to),
+      .eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to).range(0, 999),
     supabase.from("kasir_expenses").select("amount, expense_date")
       .eq("business_id", membership.business_id).eq("expense_date", today),
     supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at")
       .eq("business_id", membership.business_id).eq("status", "completed").order("created_at", { ascending: false }).limit(5),
+    supabase.from("kasir_products").select("id, name, sku, stock_qty, unit")
+      .eq("business_id", membership.business_id).eq("is_active", true).eq("track_stock", true)
+      .is("deleted_at", null).lte("stock_qty", 5).order("stock_qty").limit(8),
   ]);
 
   const saleList = sales ?? [];
   const expenseList = expenses ?? [];
   const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
   const expenseTotal = expenseList.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const saleIds = saleList.map((sale) => sale.id);
+  const { data: todayItems, error: itemsError } = saleIds.length
+    ? await supabase.from("kasir_sale_items").select("sale_id, product_name, quantity, unit_cost").eq("business_id", membership.business_id).in("sale_id", saleIds).range(0, 9999)
+    : { data: [], error: null };
+  const topProducts = new Map<string, number>();
+  for (const item of todayItems ?? []) topProducts.set(item.product_name, (topProducts.get(item.product_name) ?? 0) + Number(item.quantity));
+  const bestSellers = [...topProducts].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const cogs = (todayItems ?? []).reduce((sum, item) => sum + Number(item.unit_cost ?? 0) * Number(item.quantity), 0);
   const stats = [
     { label: "Penjualan hari ini", value: salesError ? "—" : money(revenue), detail: salesError ? "Data belum bisa dimuat" : saleList.length ? `${saleList.length} transaksi tercatat` : "Belum ada transaksi", icon: CircleDollarSign },
     { label: "Transaksi", value: salesError ? "—" : String(saleList.length), detail: "Hari ini", icon: ReceiptText },
-    { label: "Estimasi laba kotor", value: "—", detail: "HPP belum tersedia pada data transaksi", icon: ArrowUpRight },
+    { label: "Estimasi laba kotor", value: itemsError ? "—" : money(revenue - cogs), detail: itemsError ? "Data HPP belum bisa dimuat" : "Penjualan dikurangi HPP", icon: ArrowUpRight },
     { label: "Pengeluaran", value: expensesError ? "—" : money(expenseTotal), detail: expensesError ? "Data belum bisa dimuat" : `${expenseList.length} catatan hari ini`, icon: ArrowDownRight },
   ];
   const todayLabel = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date());
@@ -158,6 +169,17 @@ export default async function HomePage() {
               </div>
             </article>
           </div>
+
+          {membership.role === "owner" && <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
+              <div className="mb-4"><h3 className="font-semibold">Produk terlaris hari ini</h3><p className="mt-1 text-sm text-muted">Dihitung dari jumlah barang terjual.</p></div>
+              {itemsError ? <p role="alert" className="text-sm text-red-700">Ringkasan produk gagal dimuat.</p> : bestSellers.length === 0 ? <p className="rounded-xl border border-dashed border-line p-5 text-center text-sm text-muted">Belum ada produk terjual hari ini.</p> : <ol className="divide-y divide-line">{bestSellers.map(([name, quantity], index) => <li key={name} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span><strong className="text-sm">{quantity} terjual</strong></li>)}</ol>}
+            </article>
+            <article className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
+              <div className="mb-4 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Stok menipis</h3><p className="mt-1 text-sm text-muted">Produk dengan stok 5 atau kurang.</p></div><Link href="/products" prefetch={false} className="text-sm font-semibold text-brand">Kelola</Link></div>
+              {stockError ? <p role="alert" className="text-sm text-red-700">Data stok gagal dimuat.</p> : (lowStock ?? []).length === 0 ? <p className="rounded-xl border border-dashed border-line p-5 text-center text-sm text-muted">Tidak ada stok menipis. Stok yang dilacak aman.</p> : <ul className="divide-y divide-line">{lowStock?.map((product) => <li key={product.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{product.name}</span><span className="mt-1 block text-xs text-muted">{product.sku || "Tanpa SKU"}</span></span><strong className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-sm text-amber-800">{Number(product.stock_qty ?? 0)} {product.unit}</strong></li>)}</ul>}
+            </article>
+          </div>}
         </div>
 
         <MobileBottomNav />

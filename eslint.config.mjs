@@ -1,14 +1,23 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
-const compat = new FlatCompat({
-  baseDirectory: dirname(fileURLToPath(import.meta.url)),
-});
-
-export default [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+const config = [
+  ...nextVitals,
+  ...nextTypescript,
   {
-    ignores: [".next/**", "coverage/**", "node_modules/**"],
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["@/modules/*/*"],
+          message: "Import a feature module through its public API: @/modules/<feature>.",
+        }],
+      }],
+    },
+  },
+  {
+    ignores: [".next/**", ".open-next/**", ".wrangler/**", "freebuff-sites-build/**", "freebuff.open-next.config.ts", "coverage/**", "node_modules/**", "public/sw.js"],
   },
 ];
+
+export default config;

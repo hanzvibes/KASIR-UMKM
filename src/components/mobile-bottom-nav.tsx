@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, LayoutDashboard, MoreHorizontal, Package, ReceiptText, ShoppingCart, Wallet } from "lucide-react";
+import { BarChart3, LayoutDashboard, MoreHorizontal, Package, ReceiptText, ShoppingCart, Wallet, Clock3, CircleHelp, Settings, Users } from "lucide-react";
 import { useState } from "react";
 
 const primaryItems = [
@@ -10,10 +10,14 @@ const primaryItems = [
   { label: "Transaksi", short: "Transaksi", href: "/sales", Icon: ReceiptText },
 ];
 const moreItems = [
+  { label: "Buka / tutup kasir", href: "/shifts", Icon: Clock3, description: "Catat modal awal dan tutup shift" },
   { label: "Produk & stok", href: "/products", Icon: Package, description: "Kelola katalog dan stok barang" },
   { label: "Ringkasan usaha", href: "/dashboard", Icon: LayoutDashboard, description: "Lihat performa usaha" },
   { label: "Pengeluaran", href: "/expenses", Icon: Wallet, description: "Catat biaya operasional" },
   { label: "Laporan", href: "/reports", Icon: BarChart3, description: "Rekap penjualan dan biaya" },
+  { label: "Bantuan", href: "/help", Icon: CircleHelp, description: "Panduan singkat penggunaan" },
+  { label: "Pengaturan usaha", href: "/settings", Icon: Settings, description: "Profil dan struk usaha" },
+  { label: "Akun kasir", href: "/users", Icon: Users, description: "Undang dan atur akses karyawan" },
 ];
 
 export default function MobileBottomNav() {
