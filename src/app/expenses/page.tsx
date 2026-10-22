@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { ArrowLeft, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import PageHeader from "@/components/page-header";
 import { createExpense } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
@@ -35,12 +35,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
-          <div><h1 className="text-lg font-bold">Pengeluaran</h1><p className="text-sm text-muted">Catat biaya operasional usaha.</p></div>
-        </div>
-      </header>
+      <PageHeader title="Pengeluaran" subtitle="Catat biaya operasional usaha." backHref="/manage" width="max-w-6xl" />
       <div className="mx-auto grid max-w-6xl gap-6 p-4 pb-24 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
           <div className="mb-5 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><Wallet size={20} /></span><div><h2 className="font-semibold">Tambah pengeluaran</h2><p className="text-sm text-muted">Masukkan nominal dalam rupiah.</p></div></div>

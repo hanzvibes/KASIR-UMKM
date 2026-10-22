@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CircleHelp } from "lucide-react";
+import PageHeader from "@/components/page-header";
 
 const guides = [
   ["Mulai shift", "Buka menu Kelola → Buka / tutup kasir. Hitung uang di laci, masukkan modal awal, lalu pilih Buka kasir."],
@@ -10,5 +10,5 @@ const guides = [
 ];
 
 export default function HelpPage() {
-  return <main className="min-h-screen bg-canvas pb-24"><header className="border-b border-line bg-white"><div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4"><Link href="/checkout" aria-label="Kembali" className="grid h-10 w-10 place-items-center rounded-xl border border-line"><ArrowLeft size={18} /></Link><div className="flex items-center gap-2"><CircleHelp className="text-brand" /><div><h1 className="font-bold">Bantuan</h1><p className="text-sm text-muted">Panduan singkat penggunaan kasir.</p></div></div></div></header><div className="mx-auto max-w-3xl space-y-3 p-4 sm:p-7">{guides.map(([title, body], index) => <details key={title} open={index === 0} className="rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer font-semibold">{title}</summary><p className="mt-3 text-sm leading-6 text-muted">{body}</p></details>)}<div className="flex gap-4 px-1 pt-2 text-sm"><Link href="/privacy" className="text-brand underline">Kebijakan privasi</Link><Link href="/terms" className="text-brand underline">Syarat penggunaan</Link></div></div></main>;
+  return <main className="min-h-screen bg-canvas pb-24"><PageHeader title="Bantuan" subtitle="Panduan singkat penggunaan kasir." backHref="/manage" width="max-w-3xl" /><div className="mx-auto max-w-3xl space-y-3 p-4 sm:p-7">{guides.map(([title, body], index) => <details key={title} open={index === 0} className="rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer font-semibold">{title}</summary><p className="mt-3 text-sm leading-6 text-muted">{body}</p></details>)}<div className="flex gap-4 px-1 pt-2 text-sm"><Link href="/privacy" className="text-brand underline">Kebijakan privasi</Link><Link href="/terms" className="text-brand underline">Syarat penggunaan</Link></div></div></main>;
 }

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Banknote, CircleStop, Clock3 } from "lucide-react";
+import { Banknote, CircleStop, Clock3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import PageHeader from "@/components/page-header";
 import { addCashMovementAction, closeShiftAction, openShiftAction } from "./actions";
 import PrintReportButton from "./print-report-button";
 
@@ -34,7 +34,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Param
   const { data: closedSummary } = closedShift ? await supabase.rpc("kasir_shift_summary", { p_shift_id: closedShift.id }) : { data: null };
 
   return <main className="min-h-screen bg-canvas pb-24">
-    <header className="border-b border-line bg-white"><div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4"><Link href={active ? "/checkout" : "/dashboard"} aria-label="Kembali" className="grid h-10 w-10 place-items-center rounded-xl border border-line"><ArrowLeft size={18} /></Link><div><h1 className="text-lg font-bold">Buka / tutup kasir</h1><p className="text-sm text-muted">Catat uang awal dan cocokkan uang di laci.</p></div></div></header>
+    <PageHeader title="Buka / tutup kasir" subtitle="Catat uang awal dan cocokkan uang di laci." backHref="/manage" width="max-w-3xl" />
     <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-7">
       {params.error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{params.error}</p>}
       {params.success && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{params.success === "closed" ? "Kasir ditutup. Laporan shift tersimpan." : "Catatan kas berhasil disimpan."}</p>}

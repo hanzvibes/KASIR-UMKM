@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, ReceiptText, TrendingDown, TrendingUp } from "lucide-react";
 import { redirect } from "next/navigation";
+import { ArrowUpRight, Download, ReceiptText, ShoppingBag, TrendingDown, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import PageHeader from "@/components/page-header";
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
@@ -21,15 +22,13 @@ function jakartaDate(date: Date) {
 
 function periodRange(period: string) {
   const today = jakartaDate(new Date());
-  if (period === "day") return { period, start: today, end: today, label: `hari ini · ${today}` };
+  if (period === "day") return { period, start: today, end: today, label: "Hari ini" };
   if (period === "week") {
     const todayDate = new Date(`${today}T12:00:00+07:00`);
     const weekday = (todayDate.getUTCDay() + 6) % 7;
     const monday = new Date(todayDate.getTime() - weekday * 86400000);
     const sunday = new Date(monday.getTime() + 6 * 86400000);
-    const start = jakartaDate(monday);
-    const end = jakartaDate(sunday);
-    return { period, start, end, label: `${start} – ${end}` };
+    return { period, start: jakartaDate(monday), end: jakartaDate(sunday), label: "Minggu ini" };
   }
   const month = currentJakartaMonth();
   const end = new Date(new Date(month.next + "T00:00:00+07:00").getTime() - 86400000);
@@ -41,10 +40,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const [
     { data: { user }, error: authError },
     { data: memberships, error: membershipError },
-  ] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.rpc("kasir_get_my_business"),
-  ]);
+  ] = await Promise.all([supabase.auth.getUser(), supabase.rpc("kasir_get_my_business")]);
   if (authError || !user) redirect("/login");
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
@@ -55,7 +51,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const from = `${range.start}T00:00:00+07:00`;
   const to = new Date(new Date(`${range.end}T00:00:00+07:00`).getTime() + 86400000).toISOString();
   const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }] = await Promise.all([
-    supabase.from("kasir_sales").select("id, total_amount, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to).range(0,4999),
+    supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to).order("created_at", { ascending: false }).range(0, 4999),
     supabase.from("kasir_expenses").select("amount, expense_date").eq("business_id", membership.business_id).gte("expense_date", range.start).lte("expense_date", range.end).range(0, 4999),
   ]);
 
@@ -63,26 +59,144 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const expenseList = expenses ?? [];
   const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
   const expenseTotal = expenseList.reduce((sum, expense) => sum + Number(expense.amount), 0);
-  const { data: saleItems, error: itemsError } = saleList.length ? await supabase.from("kasir_sale_items").select("unit_cost,quantity").eq("business_id", membership.business_id).in("sale_id", saleList.map((sale) => sale.id)).range(0,9999) : { data: [], error: null };
+  const { data: saleItems, error: itemsError } = saleList.length
+    ? await supabase.from("kasir_sale_items").select("product_name, unit_cost, quantity, line_total").eq("business_id", membership.business_id).in("sale_id", saleList.map((sale) => sale.id)).range(0, 9999)
+    : { data: [], error: null };
   const cogs = (saleItems ?? []).reduce((sum, item) => sum + Number(item.unit_cost ?? 0) * Number(item.quantity), 0);
-  const netProfit = revenue - cogs - expenseTotal;
-  const salesErrorMessage = salesError ? "Data penjualan gagal dimuat." : null;
-  const expensesErrorMessage = expensesError ? "Data pengeluaran gagal dimuat." : null;
+  const grossProfit = revenue - cogs;
+  const netProfit = grossProfit - expenseTotal;
+
+  const bestSellerMap = new Map<string, { quantity: number; revenue: number }>();
+  for (const item of saleItems ?? []) {
+    const current = bestSellerMap.get(item.product_name) ?? { quantity: 0, revenue: 0 };
+    bestSellerMap.set(item.product_name, {
+      quantity: current.quantity + Number(item.quantity),
+      revenue: current.revenue + Number(item.line_total ?? 0),
+    });
+  }
+  const bestSellers = [...bestSellerMap].sort((a, b) => b[1].quantity - a[1].quantity).slice(0, 5);
+  const recentSales = saleList.slice(0, 5);
+  const periodQuery = (period: string) => `/reports?period=${period}`;
+
+  const cards = [
+    { label: "Penjualan", value: salesError ? "—" : money(revenue), detail: salesError ? "Gagal dimuat" : `${saleList.length} transaksi`, icon: ArrowUpRight },
+    { label: "Pengeluaran", value: expensesError ? "—" : money(expenseTotal), detail: expensesError ? "Gagal dimuat" : `${expenseList.length} catatan`, icon: TrendingDown },
+    { label: "Laba kotor", value: itemsError ? "—" : money(grossProfit), detail: itemsError ? "Data HPP gagal dimuat" : "Penjualan − HPP", icon: ShoppingBag },
+    { label: "Laba bersih", value: itemsError || expensesError ? "—" : money(netProfit), detail: "Setelah pengeluaran", icon: Wallet },
+  ];
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
-      <header className="border-b border-line bg-white"><div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-7"><Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link><div><h1 className="text-lg font-bold">Laporan usaha</h1><p className="text-sm text-muted">Ringkasan {range.label}.</p></div></div></header>
-      <div className="mx-auto max-w-6xl space-y-6 p-4 pb-24 sm:p-7">
-        <nav aria-label="Periode laporan" className="flex gap-2 rounded-2xl border border-line bg-white p-2">{[{ id: "day", label: "Hari" }, { id: "week", label: "Minggu" }, { id: "month", label: "Bulan" }].map(({ id, label }) => <Link key={id} href={`/reports?period=${id}`} prefetch={true} aria-current={selectedPeriod === id ? "page" : undefined} className={`min-h-11 flex-1 rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${selectedPeriod === id ? "bg-brand text-white" : "text-muted hover:bg-canvas"}`}>{label}</Link>)}</nav>
-        {(salesErrorMessage || expensesErrorMessage) && <div role="alert" className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{salesErrorMessage && <p>{salesErrorMessage}</p>}{expensesErrorMessage && <p>{expensesErrorMessage}</p>}</div>}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Penjualan tercatat</p><span className="rounded-xl bg-brand-soft p-2 text-brand"><TrendingUp size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(revenue)}</p><p className="mt-1 text-xs text-muted">{saleList.length} transaksi tercatat</p></article>
-          <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Pengeluaran</p><span className="rounded-xl bg-amber-50 p-2 text-amber-700"><TrendingDown size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(expenseTotal)}</p><p className="mt-1 text-xs text-muted">{expenseList.length} catatan pengeluaran</p></article>
-          <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Laba bersih</p><span className="rounded-xl bg-canvas p-2 text-muted"><BarChart3 size={18} /></span></div><p className={`mt-4 text-2xl font-bold ${netProfit < 0 ? "text-red-700" : "text-ink"}`}>{itemsError ? "—" : money(netProfit)}</p><p className="mt-1 text-xs text-muted">Penjualan dikurangi HPP dan pengeluaran</p></article>
-        </div>
-        <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6"><div className="mb-4 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={19} /></span><div><h2 className="font-semibold">Catatan laporan</h2><p className="text-sm text-muted">Periode {range.start} sampai {range.end}.</p></div></div><p className="text-sm leading-6 text-muted">Laba dihitung dari penjualan yang tersimpan dikurangi HPP saat transaksi dan pengeluaran tercatat. Pajak dan biaya pembayaran belum termasuk.</p><div className="flex flex-wrap gap-2"><Link href="/sales" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-canvas">Lihat transaksi</Link><Link href="/expenses" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-canvas">Lihat pengeluaran</Link><a href={`/reports/export?from=${range.start}&to=${range.end}`} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">Unduh CSV</a></div></section>
-      </div>
+      <PageHeader title="Laporan" subtitle={`${range.label} · ${range.start} sampai ${range.end}`} />
 
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-7">
+        <nav aria-label="Periode laporan" className="grid grid-cols-3 gap-1 rounded-2xl border border-line bg-white p-1.5">
+          {[{ id: "day", label: "Hari ini" }, { id: "week", label: "Minggu ini" }, { id: "month", label: "Bulan ini" }].map(({ id, label }) => (
+            <Link
+              key={id}
+              href={periodQuery(id)}
+              prefetch={true}
+              aria-current={selectedPeriod === id ? "page" : undefined}
+              className={`min-h-11 rounded-xl px-2 py-2.5 text-center text-sm font-semibold transition-colors ${selectedPeriod === id ? "bg-brand text-white" : "text-muted hover:bg-canvas"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        {(salesError || expensesError) && (
+          <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Sebagian data laporan gagal dimuat. Muat ulang halaman; angka yang tampil mungkin belum lengkap.
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {cards.map(({ label, value, detail, icon: Icon }, index) => (
+            <article key={label} className={`rounded-2xl border p-4 shadow-soft sm:p-5 ${index === 3 ? "border-[#cfe4d4] bg-[#f1f8f2]" : "border-line bg-white"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium leading-5 text-muted sm:text-sm">{label}</p>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canvas text-brand"><Icon size={16} /></span>
+              </div>
+              <p className="mt-3 text-lg font-bold tracking-tight tabular-nums sm:text-xl">{value}</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted sm:text-xs">{detail}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">Produk terlaris</h2>
+              <span className="text-xs text-muted">{range.label}</span>
+            </div>
+            {itemsError ? (
+              <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Ringkasan produk gagal dimuat.</p>
+            ) : bestSellers.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">Belum ada produk terjual pada periode ini.</p>
+            ) : (
+              <ol className="divide-y divide-line">
+                {bestSellers.map(([name, summary], index) => (
+                  <li key={name} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-soft text-xs font-bold text-brand">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
+                    <span className="shrink-0 text-right">
+                      <strong className="block text-sm tabular-nums">{summary.quantity} terjual</strong>
+                      <span className="text-[11px] text-muted">{money(summary.revenue)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">Transaksi terakhir</h2>
+              <Link href="/sales" prefetch={true} className="text-xs font-semibold text-brand hover:underline">Lihat semua</Link>
+            </div>
+            {salesError ? (
+              <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Data penjualan gagal dimuat.</p>
+            ) : recentSales.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">Belum ada transaksi pada periode ini.</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {recentSales.map((sale) => (
+                  <li key={sale.id}>
+                    <Link href={`/sales/${sale.id}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={17} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span>
+                        <span className="mt-0.5 block text-xs text-muted">
+                          {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "QRIS"}
+                        </span>
+                      </span>
+                      <strong className="shrink-0 text-sm tabular-nums">{money(Number(sale.total_amount))}</strong>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+          <h2 className="font-semibold">Unduh & catatan</h2>
+          <p className="mt-1 text-sm leading-6 text-muted">
+            Laba dihitung dari penjualan tersimpan dikurangi HPP saat transaksi dan pengeluaran tercatat. Pajak dan biaya pembayaran belum termasuk.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`/reports/export?from=${range.start}&to=${range.end}`}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white hover:bg-[#196640]"
+            >
+              <Download size={16} /> Unduh CSV
+            </a>
+            <Link href="/expenses" prefetch={true} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-canvas">
+              Catat pengeluaran
+            </Link>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

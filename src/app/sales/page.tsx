@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, ReceiptText } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import PageHeader from "@/components/page-header";
 
 type SearchParams = Promise<{ page?: string }>;
 
@@ -35,12 +36,7 @@ export default async function SalesHistoryPage({ searchParams }: { searchParams:
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
-          <div><h1 className="text-lg font-bold">Riwayat transaksi</h1><p className="text-sm text-muted">Menampilkan maksimal {pageSize} transaksi per halaman.</p></div>
-        </div>
-      </header>
+      <PageHeader title="Transaksi" subtitle="Ketuk struk untuk melihat rincian, cetak, atau bagikan." width="max-w-5xl" />
       <div className="mx-auto max-w-5xl p-4 pb-24 sm:p-7">
         {error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">Riwayat transaksi gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
         {!error && (!sales || sales.length === 0) ? <div className="rounded-2xl border border-dashed border-line bg-white p-10 text-center"><ReceiptText size={28} className="mx-auto text-muted" /><h2 className="mt-3 font-semibold">{page > 1 ? "Tidak ada transaksi di halaman ini" : "Belum ada transaksi"}</h2><p className="mt-1 text-sm text-muted">{page > 1 ? "Coba halaman sebelumnya untuk melihat transaksi." : "Transaksi yang disimpan akan muncul di sini."}</p><Link href={page > 1 ? `/sales?page=${page - 1}` : "/checkout"} className="mt-5 inline-flex rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">{page > 1 ? "Halaman sebelumnya" : "Buka kasir"}</Link></div> : (

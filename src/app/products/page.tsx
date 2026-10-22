@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, Boxes, PackagePlus, Tags } from "lucide-react";
+import { Boxes, PackagePlus, Tags } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import PageHeader from "@/components/page-header";
 import VariantEditor from "./variant-editor";
 import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive, archiveProduct } from "./actions";
 
@@ -74,12 +75,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-7">
-          <Link href="/checkout" aria-label="Kembali ke kasir" className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted hover:bg-canvas"><ArrowLeft size={18} /></Link>
-          <div><h1 className="text-lg font-bold">Produk & kategori</h1><p className="text-sm text-muted">Kelola katalog barang dan harga jual.</p></div>
-        </div>
-      </header>
+      <PageHeader title="Produk & stok" subtitle="Katalog, harga, kategori, dan varian." backHref="/manage" width="max-w-7xl" />
 
       <div className="mx-auto max-w-7xl space-y-6 p-4 pb-24 sm:p-7">
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}

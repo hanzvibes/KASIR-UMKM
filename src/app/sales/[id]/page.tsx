@@ -44,7 +44,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
     <main className="min-h-screen bg-canvas p-4 pb-28 sm:p-8 md:pb-28 print:pb-0">
       <div className="mx-auto max-w-2xl">
         <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
-          <Link href="/checkout" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={17} /> Kembali ke kasir</Link>
+          <Link href="/sales" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={17} /> Riwayat transaksi</Link>
           <PrintReceiptButton />
         </div>
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-8 print:border-0 print:shadow-none">
