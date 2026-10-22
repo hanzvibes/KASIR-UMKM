@@ -17,10 +17,14 @@ function todayJakarta() {
 export default async function ExpensesPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: memberships, error: membershipError },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
 
