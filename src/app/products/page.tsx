@@ -57,7 +57,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       <div className="mx-auto max-w-7xl space-y-6 p-4 pb-24 sm:p-7">
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.success && successMessages[params.success] && <p role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessages[params.success]}</p>}
-        {(categoriesError || productsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data belum bisa dimuat. Pastikan migrasi database sudah diterapkan di project Supabase development.</p>}
+        {(categoriesError || productsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk atau kategori gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
           <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
