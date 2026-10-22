@@ -27,11 +27,13 @@ export default function CheckoutClient({
   categories,
   idempotencyKey,
   errorMessage,
+  dataError = false,
 }: {
   products: Product[];
   categories: Category[];
   idempotencyKey: string;
   errorMessage?: string;
+  dataError?: boolean;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [activeIdempotencyKey, setActiveIdempotencyKey] = useState(idempotencyKey);
@@ -265,7 +267,14 @@ export default function CheckoutClient({
             ))}
           </div>
 
-          {products.length === 0 ? (
+          {dataError ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-8 text-center">
+              <ShoppingCart size={27} className="mx-auto text-amber-800" />
+              <p className="mt-3 font-semibold text-amber-950">Produk belum bisa dimuat</p>
+              <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-amber-900">Ini belum tentu berarti katalog kosong. Muat ulang untuk mencoba lagi.</p>
+              <button type="button" onClick={() => window.location.reload()} className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">Muat ulang</button>
+            </div>
+          ) : products.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center">
               <ShoppingCart size={27} className="mx-auto text-muted" />
               <p className="mt-3 font-semibold">Katalog masih kosong</p>
