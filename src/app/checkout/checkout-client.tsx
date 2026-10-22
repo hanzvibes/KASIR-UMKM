@@ -82,12 +82,22 @@ export default function CheckoutClient({
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.8fr)]">
       <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <div><h2 className="font-semibold">Pilih produk</h2><p className="mt-1 text-sm text-muted">{products.length} produk aktif</p></div>
+          <div><h2 className="font-semibold">Pilih produk</h2><p className="mt-1 text-sm text-muted">{filteredProducts.length} dari {products.length} produk aktif</p></div>
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand"><ShoppingCart size={19} /></span>
         </div>
-        {products.length === 0 ? <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Belum ada produk aktif. Tambahkan produk terlebih dahulu.</p> : (
+        <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
+          <label className="grid gap-1.5 text-xs font-semibold">Cari produk
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nama produk atau SKU" className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal outline-none focus:border-brand" />
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold">Kategori
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-normal">
+              <option value="all">Semua kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
+        </div>
+        {products.length === 0 ? <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Belum ada produk aktif. Tambahkan produk terlebih dahulu.</p> : filteredProducts.length === 0 ? <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Produk tidak ditemukan. Coba kata kunci atau kategori lain.</p> : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {products.map((product) => {
+            {filteredProducts.map((product) => {
               const outOfStock = product.track_stock && (product.stock_qty ?? 0) < 1;
               return <button key={product.id} type="button" disabled={outOfStock} onClick={() => addProduct(product)}
                 className="flex min-h-32 flex-col rounded-xl border border-line p-3 text-left transition hover:border-brand hover:bg-brand-soft/30 disabled:cursor-not-allowed disabled:opacity-50">
