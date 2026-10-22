@@ -15,6 +15,7 @@ as $$
 $$;
 
 revoke all on function public.kasir_get_my_business() from public;
+revoke execute on function public.kasir_get_my_business() from anon;
 grant execute on function public.kasir_get_my_business() to authenticated;
 
 -- Make onboarding retries safe: if this account already owns a business, return
@@ -68,4 +69,5 @@ end;
 $$;
 
 revoke all on function public.kasir_create_business(text) from public;
+revoke execute on function public.kasir_create_business(text) from anon;
 grant execute on function public.kasir_create_business(text) to authenticated;
