@@ -13,8 +13,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) redirect("/login");
 
-  const { data: membership, error: membershipError } = await supabase
-    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
+  const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
 
   const [{ data: products, error }, { data: categories, error: categoriesError }] = await Promise.all([
