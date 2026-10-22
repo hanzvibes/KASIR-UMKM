@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Boxes, PackagePlus, Tags } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
@@ -49,7 +49,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl space-y-6 p-4 pb-10 sm:p-7">
+      <div className="mx-auto max-w-7xl space-y-6 p-4 pb-24 sm:p-7">
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.success && successMessages[params.success] && <p role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessages[params.success]}</p>}
         {(categoriesError || productsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data belum bisa dimuat. Pastikan migrasi database sudah diterapkan di project Supabase development.</p>}
@@ -143,6 +143,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           )}
         </section>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }
