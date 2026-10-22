@@ -12,11 +12,15 @@ describe("money helpers", () => {
 
   it("rejects invalid quantities and prices", () => {
     expect(() => calculateSubtotal([{ unitPrice: 1000, quantity: 0 }])).toThrow(RangeError);
+    expect(() => calculateSubtotal([{ unitPrice: 1000, quantity: 1.5 }])).toThrow(RangeError);
     expect(() => calculateSubtotal([{ unitPrice: -1, quantity: 1 }])).toThrow(RangeError);
+    expect(() => calculateSubtotal([{ unitPrice: 1.5, quantity: 1 }])).toThrow(RangeError);
   });
 
   it("applies a valid discount and rejects excessive discounts", () => {
     expect(calculateTotal(10000, 1500)).toBe(8500);
+    expect(calculateTotal(10000, 10000)).toBe(0);
     expect(() => calculateTotal(10000, 10001)).toThrow(RangeError);
+    expect(() => calculateTotal(-1, 0)).toThrow(RangeError);
   });
 });
