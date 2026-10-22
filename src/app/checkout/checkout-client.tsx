@@ -35,6 +35,7 @@ export default function CheckoutClient({
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [cashReceived, setCashReceived] = useState("");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
   const [submitting, setSubmitting] = useState(false);
@@ -150,6 +151,7 @@ export default function CheckoutClient({
                 <option value="cash">Tunai</option><option value="transfer">Transfer</option><option value="other">Lainnya</option>
               </select>
             </label>
+            {paymentMethod === "cash" && <label className="grid gap-1.5 text-sm font-medium">Uang diterima (Rp) *<input name="cash_received" type="number" min={subtotal} step="1" required value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} placeholder={String(subtotal)} className="rounded-xl border border-line px-3 py-2.5 font-normal" /><span className="text-xs font-normal text-muted">Kembalian: {cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= subtotal ? rupiah(Number(cashReceived) - subtotal) : "—"}</span></label>}
             <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting} className="w-full rounded-xl bg-brand px-4 py-3 font-semibold text-white hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Menyimpan transaksi..." : "Simpan transaksi"}</button>
             <p className="text-xs leading-5 text-muted">Total dan stok diverifikasi kembali oleh database saat transaksi disimpan.</p>
           </form>

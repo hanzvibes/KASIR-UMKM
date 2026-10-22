@@ -51,6 +51,8 @@ create table if not exists public.kasir_sales (
   business_id uuid not null references public.kasir_businesses(id) on delete cascade,
   created_by uuid not null references auth.users(id),
   total_amount numeric(14,0) not null default 0 check (total_amount >= 0),
+  cash_received numeric(14,0) check (cash_received is null or cash_received >= 0),
+  change_due numeric(14,0) not null default 0 check (change_due >= 0),
   payment_method text not null check (payment_method in ('cash','transfer','other')),
   idempotency_key uuid not null,
   status text not null default 'completed' check (status in ('completed','voided')),
@@ -86,6 +88,8 @@ create table if not exists public.kasir_expenses (
   created_at timestamptz not null default now()
 );
 
+alter table public.kasir_sales add column if not exists cash_received numeric(14,0);
+alter table public.kasir_sales add column if not exists change_due numeric(14,0) not null default 0;
 alter table public.kasir_sales add column if not exists status text not null default 'completed';
 alter table public.kasir_sales add column if not exists voided_at timestamptz;
 alter table public.kasir_sales add column if not exists voided_by uuid references auth.users(id);
@@ -147,7 +151,8 @@ revoke all on function public.kasir_create_business(text) from public;
 grant execute on function public.kasir_create_business(text) to authenticated;
 
 create or replace function public.kasir_create_sale(
-  p_business_id uuid, p_items jsonb, p_payment_method text, p_idempotency_key uuid
+  p_business_id uuid, p_items jsonb, p_payment_method text, p_idempotency_key uuid,
+  p_cash_received numeric default null
 ) returns jsonb language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -203,12 +208,21 @@ begin
     insert into public.kasir_sale_items(business_id, sale_id, product_id, product_name, unit, quantity, unit_price, unit_cost, line_total)
       values (p_business_id, sale_id, product_row.id, product_row.name, product_row.unit, qty, product_row.price, product_row.cost_price, line_total);
   end loop;
-  update public.kasir_sales set total_amount=sale_total where id=sale_id;
+  if p_payment_method = 'cash' then
+    if p_cash_received is null or p_cash_received < sale_total or p_cash_received <> trunc(p_cash_received) then
+      raise exception 'Cash received must be a whole rupiah amount greater than or equal to total' using errcode='22023';
+    end if;
+  end if;
+  update public.kasir_sales
+    set total_amount=sale_total,
+        cash_received=case when p_payment_method='cash' then p_cash_received else null end,
+        change_due=case when p_payment_method='cash' then p_cash_received-sale_total else 0 end
+    where id=sale_id;
   return jsonb_build_object('id', sale_id, 'total_amount', sale_total, 'duplicate', false);
 end;
 $$;
-revoke all on function public.kasir_create_sale(uuid,jsonb,text,uuid) from public;
-grant execute on function public.kasir_create_sale(uuid,jsonb,text,uuid) to authenticated;
+revoke all on function public.kasir_create_sale(uuid,jsonb,text,uuid,numeric) from public;
+grant execute on function public.kasir_create_sale(uuid,jsonb,text,uuid,numeric) to authenticated;
 
 create or replace function public.kasir_void_sale(p_sale_id uuid, p_reason text)
 returns jsonb language plpgsql security definer set search_path = ''

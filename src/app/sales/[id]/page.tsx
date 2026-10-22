@@ -18,7 +18,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   if (authError || !user) redirect("/login");
 
   const { data: sale, error } = await supabase.from("kasir_sales")
-    .select("id, business_id, payment_method, total_amount, created_at, status, void_reason")
+    .select("id, business_id, payment_method, total_amount, cash_received, change_due, created_at, status, void_reason")
     .eq("id", id).maybeSingle();
   if (error || !sale) notFound();
 
@@ -51,6 +51,8 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
           </div>
           <div className="my-6 border-y border-dashed border-line py-4 text-sm">
             <div className="flex justify-between gap-4"><span className="text-muted">Pembayaran</span><span className="font-medium">{paymentLabel}</span></div>
+            <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Uang diterima</span><span className="font-medium">{sale.payment_method === "cash" ? money(sale.cash_received) : "—"}</span></div>
+            {sale.payment_method === "cash" && <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Kembalian</span><span className="font-semibold">{money(sale.change_due)}</span></div>}
             <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Status</span><span className={`font-semibold ${isVoided ? "text-red-700" : "text-green-700"}`}>{isVoided ? "Dibatalkan" : "Tersimpan"}</span></div>
           </div>
           <div className="space-y-4">

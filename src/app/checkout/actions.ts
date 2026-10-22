@@ -12,10 +12,13 @@ export async function checkoutAction(formData: FormData) {
   const rawItems = formData.get("items");
   const idempotencyKey = formData.get("idempotency_key");
   const paymentMethod = formData.get("payment_method");
+  const cashReceivedRaw = formData.get("cash_received");
 
   if (typeof rawItems !== "string" || rawItems.length > 30000) fail("Keranjang tidak valid.");
   if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
   if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "other") fail("Metode pembayaran tidak valid.");
+  const cashReceived = paymentMethod === "cash" && typeof cashReceivedRaw === "string" && /^[0-9]+$/.test(cashReceivedRaw) ? Number(cashReceivedRaw) : null;
+  if (paymentMethod === "cash" && (cashReceived === null || !Number.isSafeInteger(cashReceived) || cashReceived < 0)) fail("Nominal uang diterima harus berupa rupiah bulat nol atau lebih.");
 
   let parsed: unknown;
   try {
@@ -60,11 +63,13 @@ export async function checkoutAction(formData: FormData) {
     p_items: items,
     p_payment_method: paymentMethod,
     p_idempotency_key: idempotencyKey,
+    p_cash_received: cashReceived,
   });
 
   if (error || !data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string") {
     const message = error?.message ?? "";
     if (message.toLowerCase().includes("insufficient stock")) fail("Stok tidak cukup untuk salah satu produk. Periksa stok lalu coba lagi.");
+    if (message.toLowerCase().includes("cash received")) fail("Uang diterima tidak boleh kurang dari total transaksi.");
     if (message.toLowerCase().includes("inactive") || message.toLowerCase().includes("product not found")) fail("Ada produk yang sudah nonaktif atau tidak tersedia.");
     if (message.toLowerCase().includes("business access denied")) redirect("/onboarding");
     fail("Transaksi gagal disimpan. Pastikan migrasi checkout sudah diterapkan pada Supabase development.");
