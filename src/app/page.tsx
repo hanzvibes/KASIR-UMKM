@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MobileBottomNav from "@/components/mobile-bottom-nav";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ArrowDownRight, ArrowUpRight, Boxes, BarChart3, CircleDollarSign, ClipboardList, Coffee, CreditCard, LayoutDashboard, Package, Plus, ReceiptText, Settings, ShoppingCart, Wallet } from "lucide-react";
@@ -159,13 +160,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t border-line bg-white/95 px-1 py-2 backdrop-blur md:hidden">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <Link key={label} href={label === "Produk" ? "/products" : label === "Kasir" ? "/checkout" : label === "Transaksi" ? "/sales" : label === "Pengeluaran" ? "/expenses" : label === "Laporan" ? "/reports" : "/"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-medium ${active ? "text-brand" : "text-muted"}`}>
-              <Icon size={18} />{label === "Pengeluaran" ? "Biaya" : label}
-            </Link>
-          ))}
-        </nav>
+        <MobileBottomNav />
+
       </section>
     </main>
   );
