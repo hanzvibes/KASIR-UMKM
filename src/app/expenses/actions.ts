@@ -28,13 +28,17 @@ export async function createExpense(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: memberships, error: membershipError },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
-  if (membership.role !== "owner") redirect("/?error=owner_only");
+  if (membership.role !== "owner") redirect("/expenses?error=owner_only");
 
   const { error } = await supabase.from("kasir_expenses").insert({
     business_id: membership.business_id,
