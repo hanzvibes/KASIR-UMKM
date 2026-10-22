@@ -23,10 +23,14 @@ function jakartaToday() {
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const [
+    { data: { user }, error: authError },
+    { data: memberships, error: membershipError },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("kasir_get_my_business"),
+  ]);
   if (authError || !user) redirect("/login");
-
-  const { data: memberships, error: membershipError } = await supabase.rpc("kasir_get_my_business");
   if (membershipError) {
     return (
       <main className="grid min-h-screen place-items-center bg-canvas px-4 py-10">
