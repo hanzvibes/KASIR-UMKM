@@ -21,23 +21,23 @@ export default async function ReportsPage() {
   if (authError || !user) redirect("/login");
 
   const { data: membership, error: membershipError } = await supabase
-    .from("business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
+    .from("kasir_business_members").select("business_id").eq("user_id", user.id).limit(1).maybeSingle();
   if (membershipError || !membership) redirect("/onboarding");
 
   const month = currentJakartaMonth();
   const from = `${month.start}T00:00:00+07:00`;
   const to = `${month.next}T00:00:00+07:00`;
   const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }] = await Promise.all([
-    supabase.from("sales").select("id, total, status, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to),
-    supabase.from("expenses").select("amount, expense_date").eq("business_id", membership.business_id).gte("expense_date", month.start).lt("expense_date", month.next),
+    supabase.from("kasir_sales").select("id, total_amount, created_at").eq("business_id", membership.business_id).gte("created_at", from).lt("created_at", to),
+    supabase.from("kasir_expenses").select("amount, expense_date").eq("business_id", membership.business_id).gte("expense_date", month.start).lt("expense_date", month.next),
   ]);
 
   const saleList = sales ?? [];
   const expenseList = expenses ?? [];
-  const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total), 0);
+  const revenue = saleList.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
   const expenseTotal = expenseList.reduce((sum, expense) => sum + Number(expense.amount), 0);
-  const salesErrorMessage = salesError ? "Data penjualan belum tersedia. Pastikan migrasi checkout sudah diterapkan." : null;
-  const expensesErrorMessage = expensesError ? "Data pengeluaran belum tersedia. Pastikan migrasi pengeluaran sudah diterapkan." : null;
+  const salesErrorMessage = salesError ? "Data penjualan belum tersedia. Pastikan tabel kasir_sales tersedia di Supabase development." : null;
+  const expensesErrorMessage = expensesError ? "Data pengeluaran belum tersedia. Pastikan tabel kasir_expenses tersedia di Supabase development." : null;
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -45,7 +45,7 @@ export default async function ReportsPage() {
       <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-7">
         {(salesErrorMessage || expensesErrorMessage) && <div role="alert" className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{salesErrorMessage && <p>{salesErrorMessage}</p>}{expensesErrorMessage && <p>{expensesErrorMessage}</p>}</div>}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Penjualan</p><span className="rounded-xl bg-brand-soft p-2 text-brand"><TrendingUp size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(revenue)}</p><p className="mt-1 text-xs text-muted">{saleList.length} transaksi selesai</p></article>
+          <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Penjualan tercatat</p><span className="rounded-xl bg-brand-soft p-2 text-brand"><TrendingUp size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(revenue)}</p><p className="mt-1 text-xs text-muted">{saleList.length} transaksi tercatat</p></article>
           <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Pengeluaran</p><span className="rounded-xl bg-amber-50 p-2 text-amber-700"><TrendingDown size={18} /></span></div><p className="mt-4 text-2xl font-bold">{money(expenseTotal)}</p><p className="mt-1 text-xs text-muted">{expenseList.length} catatan pengeluaran</p></article>
           <article className="rounded-2xl border border-line bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><p className="text-sm text-muted">Selisih sederhana</p><span className="rounded-xl bg-canvas p-2 text-muted"><BarChart3 size={18} /></span></div><p className={`mt-4 text-2xl font-bold ${revenue - expenseTotal < 0 ? "text-red-700" : "text-ink"}`}>{money(revenue - expenseTotal)}</p><p className="mt-1 text-xs text-muted">Penjualan dikurangi pengeluaran tercatat</p></article>
         </div>

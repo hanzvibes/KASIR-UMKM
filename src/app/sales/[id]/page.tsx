@@ -14,14 +14,16 @@ export default async function SaleReceiptPage({ params }: { params: Params }) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) redirect("/login");
 
-  const { data: sale, error } = await supabase.from("sales")
-    .select("id, receipt_no, payment_method, subtotal, total, status, created_at")
+  const { data: sale, error } = await supabase.from("kasir_sales")
+    .select("id, payment_method, total_amount, created_at")
     .eq("id", id).maybeSingle();
   if (error || !sale) notFound();
 
-  const { data: items } = await supabase.from("sale_items")
-    .select("id, product_name, sku, unit, quantity, unit_price, line_total")
+  const { data: items, error: itemsError } = await supabase.from("kasir_sale_items")
+    .select("id, product_name, quantity, unit_price, line_total")
     .eq("sale_id", sale.id).order("created_at");
+
+  if (itemsError) notFound();
 
   const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at));
   const paymentLabel = sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "Lainnya";
@@ -38,12 +40,12 @@ export default async function SaleReceiptPage({ params }: { params: Params }) {
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-brand"><CheckCircle2 size={26} /></span>
             <h1 className="mt-3 text-xl font-bold">Transaksi berhasil</h1>
             <p className="mt-1 text-sm text-muted">Struk pembayaran</p>
-            <p className="mt-4 font-mono text-sm">#{sale.receipt_no}</p>
+            <p className="mt-4 font-mono text-sm">#{sale.id.slice(0, 8).toUpperCase()}</p>
             <p className="mt-1 text-xs text-muted">{date}</p>
           </div>
           <div className="my-6 border-y border-dashed border-line py-4 text-sm">
             <div className="flex justify-between gap-4"><span className="text-muted">Pembayaran</span><span className="font-medium">{paymentLabel}</span></div>
-            <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Status</span><span className={`font-semibold ${sale.status === "completed" ? "text-green-700" : "text-muted"}`}>{sale.status === "completed" ? "Lunas" : "Dibatalkan"}</span></div>
+            <div className="mt-2 flex justify-between gap-4"><span className="text-muted">Status</span><span className="font-semibold text-green-700">Tersimpan</span></div>
           </div>
           <div className="space-y-4">
             {(items ?? []).map((item) => <div key={item.id} className="flex justify-between gap-4 text-sm">
@@ -51,7 +53,7 @@ export default async function SaleReceiptPage({ params }: { params: Params }) {
               <span className="shrink-0 font-semibold">{money(item.line_total)}</span>
             </div>)}
           </div>
-          <div className="mt-6 border-t border-line pt-4"><div className="flex justify-between text-base"><span className="font-semibold">Total</span><strong className="text-xl">{money(sale.total)}</strong></div></div>
+          <div className="mt-6 border-t border-line pt-4"><div className="flex justify-between text-base"><span className="font-semibold">Total</span><strong className="text-xl">{money(sale.total_amount)}</strong></div></div>
           <p className="mt-8 text-center text-xs text-muted">Terima kasih sudah berbelanja.</p>
         </section>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row print:hidden">
