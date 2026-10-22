@@ -23,7 +23,27 @@ export function OnboardingForm() {
       router.replace("/");
       router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Usaha belum bisa dibuat. Coba lagi.");
+      // Supabase/PostgREST errors are plain objects, not always Error instances.
+      const details = error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : error instanceof Error
+          ? error.message
+          : "";
+      const code = error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : "";
+
+      if (code === "23505") {
+        setErrorMessage("Profil usaha ini sudah pernah dibuat. Muat ulang halaman dan coba masuk ke dashboard.");
+      } else if (code === "42501" || code === "PGRST301") {
+        setErrorMessage("Akses ditolak oleh database. Periksa kebijakan akses Supabase untuk pembuatan usaha.");
+      } else if (code === "PGRST202" || code === "42883") {
+        setErrorMessage("Fungsi create_business belum tersedia di database. Terapkan migrasi Supabase terbaru lalu coba lagi.");
+      } else if (details) {
+        setErrorMessage(`Usaha belum bisa dibuat: ${details}`);
+      } else {
+        setErrorMessage("Usaha belum bisa dibuat. Periksa koneksi Supabase lalu coba lagi.");
+      }
     } finally {
       setBusy(false);
     }
