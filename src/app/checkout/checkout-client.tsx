@@ -540,19 +540,18 @@ export default function CheckoutClient({
           </section>
         </div>;
       })()}
-      {!online && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"><p className="font-bold">Koneksi internet terputus</p><p className="mt-1">Keranjang tersimpan di perangkat ini, tetapi transaksi belum tercatat. Sambungkan kembali ke internet sebelum menyimpan.</p></div>}
+      {!online && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"><p className="font-bold">Offline · transaksi nonaktif</p><p className="mt-1">Sambungkan internet untuk checkout.</p></div>}
       {online && <p className="sr-only" role="status">Koneksi internet aktif. Transaksi dapat disimpan.</p>}
       {stockConflicts.length > 0 && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900"><p className="font-bold">Stok berubah sejak katalog dimuat</p><ul className="mt-1 list-inside list-disc">{stockConflicts.map((conflict) => <li key={conflict.name}>{conflict.name}: di keranjang {conflict.requested}, stok saat ini {conflict.available}. Kurangi jumlahnya sebelum menyimpan.</li>)}</ul></div>}
-      {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang sebelumnya dipulihkan. Periksa kembali jumlah barang dan stok sebelum menyimpan.</p>}
+      {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang dipulihkan. Cek jumlah dan stok.</p>}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)] xl:items-start">
         <section className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-brand">Mode kasir</p>
-              <h2 className="mt-1 text-lg font-bold">Pilih produk</h2>
-              <p className="mt-1 text-xs text-muted">{filteredProducts.length} dari {products.length} produk aktif</p>
+              <h2 className="text-lg font-bold">Produk</h2>
+              <p className="mt-1 text-xs text-muted">{filteredProducts.length} tersedia</p>
             </div>
-            <span className="hidden shrink-0 rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand sm:inline-flex">Tekan / untuk cari · F2 untuk bayar</span>
+            <span className="hidden shrink-0 rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand sm:inline-flex">Cari / · Bayar F2</span>
           </div>
 
           <div className={`sticky z-10 -mx-4 -mt-1 mb-3 border-b border-line/70 bg-white/95 px-4 pb-2 pt-2 backdrop-blur transition-[top] sm:-mx-5 sm:px-5 ${cartOpen ? "top-0" : "top-16"}`}>
@@ -579,7 +578,7 @@ export default function CheckoutClient({
           </div>
 
           {quickProducts.length > 0 && !search.trim() && <section aria-label="Produk pilihan cepat" className="mb-5 rounded-2xl bg-brand-soft/55 p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2"><Sparkles size={16} className="text-brand" /><h3 className="text-sm font-bold">Pilihan cepat</h3><span className="text-xs text-muted">Favorit dan sering dipilih di perangkat ini</span></div>
+            <div className="mb-3 flex items-center gap-2"><Sparkles size={16} className="text-brand" /><h3 className="text-sm font-bold">Pilihan cepat</h3><span className="text-xs text-muted">Favorit & sering dipakai</span></div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {quickProducts.map((product) => <button key={product.id} type="button" onClick={() => addProduct(product)} className="flex min-w-36 max-w-44 flex-col items-start rounded-xl border border-white bg-white px-3 py-2.5 text-left shadow-sm hover:border-brand">
                 <span className="line-clamp-1 w-full text-xs font-semibold">{product.name}</span><span className="mt-1 text-xs font-bold text-brand">{rupiah(Number(product.price))}</span>
@@ -591,14 +590,14 @@ export default function CheckoutClient({
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-8 text-center">
               <ShoppingCart size={27} className="mx-auto text-amber-800" />
               <p className="mt-3 font-semibold text-amber-950">Produk belum bisa dimuat</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-amber-900">Ini belum tentu berarti katalog kosong. Muat ulang untuk mencoba lagi.</p>
+              <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-amber-900">Coba muat ulang halaman.</p>
               <button type="button" onClick={() => window.location.reload()} className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">Muat ulang</button>
             </div>
           ) : products.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center">
               <ShoppingCart size={27} className="mx-auto text-muted" />
               <p className="mt-3 font-semibold">Katalog masih kosong</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-muted">Tambahkan produk satu kali. Setelah itu, kasir cukup ketuk barang untuk memasukkannya ke transaksi.</p>
+              <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-muted">Tambahkan produk untuk mulai berjualan.</p>
               <Link href="/products" className="mt-4 inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">Tambah produk</Link>
             </div>
           ) : filteredProducts.length === 0 ? (
