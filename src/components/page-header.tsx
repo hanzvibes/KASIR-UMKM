@@ -16,7 +16,7 @@ export default function PageHeader({
   width?: string;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-line/80 bg-white/90 shadow-[0_2px_12px_rgba(23,35,29,0.025)] backdrop-blur-xl">
       <div className={`mx-auto flex ${width} items-center gap-3 px-4 py-3 sm:px-7`}>
         {backHref && (
           <Link
@@ -28,7 +28,7 @@ export default function PageHeader({
           </Link>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-bold leading-tight sm:text-lg">{title}</h1>
+          <h1 className="truncate text-base font-bold leading-tight tracking-tight sm:text-xl">{title}</h1>
           {subtitle && <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{subtitle}</p>}
         </div>
         {action}

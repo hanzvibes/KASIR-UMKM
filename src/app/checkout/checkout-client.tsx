@@ -242,6 +242,10 @@ export default function CheckoutClient({
   }, [catalogPreferences, preferencesKey, preferencesReady]);
 
   useEffect(() => {
+    searchRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -373,12 +377,6 @@ export default function CheckoutClient({
       event.preventDefault();
       return;
     }
-    const paymentLabel = paymentMethod === "cash" ? "Tunai" : paymentMethod === "qris" ? "QRIS" : "Transfer";
-    const cashSummary = paymentMethod === "cash" ? `\nUang diterima: ${rupiah(Number(cashReceived))}\nKembalian: ${rupiah(Number(cashReceived) - total)}` : "";
-    if (!window.confirm(`Simpan transaksi ini?\n\n${itemCount} barang · ${cart.length} jenis\nSubtotal: ${rupiah(subtotal)}${discountAmount ? `\nDiskon: −${rupiah(discountAmount)}` : ""}\nTotal: ${rupiah(total)}\nPembayaran: ${paymentLabel}${cashSummary}`)) {
-      event.preventDefault();
-      return;
-    }
     try {
       sessionStorage.setItem(draftKey, JSON.stringify({
         items: cart,
@@ -493,7 +491,7 @@ export default function CheckoutClient({
           )}
           {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
           <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online || !cashIsValid || !discountIsValid || stockConflicts.length > 0}
-            className="press flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">
+            className="press sticky bottom-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(29,117,75,0.22)] transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50 xl:static xl:shadow-soft">
             {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan · {rupiah(total)}</>}
           </button>
           {paymentMethod === "cash" && !cashIsValid && <p className="text-center text-xs text-amber-800">Masukkan uang diterima atau pilih nominal cepat untuk melanjutkan.</p>}
@@ -603,7 +601,7 @@ export default function CheckoutClient({
           ) : filteredProducts.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Produk tidak ditemukan. Coba kata kunci atau kategori lain.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-3">
               {filteredProducts.map((product) => {
                 const outOfStock = product.track_stock && (product.stock_qty ?? 0) < 1;
                 const quantityInCart = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);

@@ -112,14 +112,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {cards.map(({ label, value, detail, icon: Icon }, index) => (
             <article key={label} className={`rounded-2xl border p-4 shadow-soft sm:p-5 ${index === 3 ? "border-[#cfe4d4] bg-[#f1f8f2]" : "border-line bg-white"}`}>
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-medium leading-5 text-muted sm:text-sm">{label}</p>
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canvas text-brand"><Icon size={16} /></span>
               </div>
-              <p className="mt-3 text-lg font-bold tracking-tight tabular-nums sm:text-xl">{value}</p>
+              <p className="mt-3 break-words text-lg font-bold tracking-tight tabular-nums sm:text-xl">{value}</p>
               <p className="mt-1 text-[11px] leading-4 text-muted sm:text-xs">{detail}</p>
             </article>
           ))}
@@ -134,7 +134,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             {itemsError ? (
               <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Ringkasan produk gagal dimuat.</p>
             ) : bestSellers.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">Belum ada produk terjual pada periode ini.</p>
+              <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-5 py-8 text-center"><span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand"><ShoppingBag size={20} /></span><p className="mt-3 text-sm font-semibold">Belum ada produk terjual</p><p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-muted">Penjualan produk pada periode {range.label.toLowerCase()} akan muncul di sini.</p><Link href="/checkout" className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-xs font-semibold text-white hover:bg-[#196640]">Mulai transaksi</Link></div>
             ) : (
               <ol className="divide-y divide-line">
                 {bestSellers.map(([name, summary], index) => (
@@ -159,7 +159,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             {salesError ? (
               <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Data penjualan gagal dimuat.</p>
             ) : recentSales.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">Belum ada transaksi pada periode ini.</p>
+              <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-5 py-8 text-center"><span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-brand-soft text-brand"><ReceiptText size={20} /></span><p className="mt-3 text-sm font-semibold">Belum ada transaksi</p><p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-muted">Transaksi pada periode {range.label.toLowerCase()} akan tercatat di sini.</p><Link href="/checkout" className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-xs font-semibold text-white hover:bg-[#196640]">Buka kasir</Link></div>
             ) : (
               <ul className="divide-y divide-line">
                 {recentSales.map((sale) => (

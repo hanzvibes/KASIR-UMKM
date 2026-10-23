@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main aria-busy="true" aria-live="polite" className="min-h-screen bg-canvas">
+    <main aria-busy="true" aria-live="polite" className="min-h-screen bg-canvas pb-28">
       <div className="sticky top-0 z-20 border-b border-line bg-white/95 px-4 py-4 backdrop-blur sm:px-7">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <div className="h-10 w-10 animate-pulse rounded-xl bg-skeleton" />
@@ -29,6 +29,7 @@ export default function Loading() {
           ))}
         </div>
       </div>
+      <div className="fixed inset-x-0 bottom-5 z-10 flex justify-center"><span className="rounded-full border border-line bg-white/90 px-4 py-2 text-xs font-medium text-muted shadow-soft backdrop-blur">Memuat halaman…</span></div>
       <p className="sr-only">Memuat halaman…</p>
     </main>
   );

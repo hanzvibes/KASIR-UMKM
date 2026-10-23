@@ -3,7 +3,7 @@ import withSerwistInit from "@serwist/next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  allowedDevOrigins: ["pv-3e3a4c470b12-6aefc408-2bb0-4f84-8dea-dfcf6bb1c8c3.style.dev"],
+  allowedDevOrigins: ["pv-b3987d022a25-dea37420-78b0-4fa4-9445-d959237b4fa3.style.dev"],
 };
 
 const withSerwist = withSerwistInit({
