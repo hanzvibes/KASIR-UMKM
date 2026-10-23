@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ReceiptText, X } from "lucide-react";
 
@@ -52,8 +53,8 @@ export default function ActivityPanel() {
     <button type="button" onClick={showPanel} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold text-ink hover:bg-canvas" aria-label="Buka transaksi terakhir">
       <ReceiptText size={17} /><span className="hidden sm:inline">Transaksi terakhir</span><span className="sm:hidden">Transaksi</span>
     </button>
-    {open && <div className="fixed inset-0 z-[70] flex justify-end bg-black/40 backdrop-blur-[1px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="activity-title" className="flex h-full w-full max-w-lg flex-col bg-canvas shadow-2xl animate-rise-in">
+    {open && createPortal(<div className="fixed inset-0 z-[70] flex justify-end bg-black/40 backdrop-blur-[1px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="activity-title" className="flex h-full w-full max-w-lg flex-col bg-canvas shadow-2xl">
         <header className="flex items-center gap-3 border-b border-line bg-white px-4 py-4 sm:px-6">
           <div className="min-w-0 flex-1"><h2 id="activity-title" className="font-bold">Transaksi terakhir</h2><p className="mt-1 text-xs text-muted">Riwayat dimuat saat panel dibuka</p></div>
           <button type="button" aria-label="Tutup transaksi" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-muted"><X size={18} /></button>
@@ -71,6 +72,6 @@ export default function ActivityPanel() {
         </div>
         <footer className="border-t border-line bg-white p-4 text-center text-xs text-muted">Buka detail struk dengan mengetuk transaksi.</footer>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }

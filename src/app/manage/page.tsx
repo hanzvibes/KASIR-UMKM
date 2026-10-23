@@ -28,12 +28,6 @@ const groups: ManageGroup[] = [
     title: "Operasional",
     items: [
       {
-        href: "/shifts",
-        title: "Buka / tutup kasir",
-        description: "Modal awal, kas masuk-keluar, dan tutup laci",
-        icon: Clock3,
-      },
-      {
         href: "/products",
         title: "Produk & stok",
         description: "Katalog, harga, kategori, dan varian",
@@ -138,12 +132,12 @@ export default async function ManagePage() {
             </div>
           </div>
           <Link
-            href="/shifts"
+            href="/checkout"
             prefetch={true}
             className="press mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 font-semibold text-white transition hover:bg-[#196640]"
           >
             <Clock3 size={17} />
-            {activeShift ? "Lihat shift & laci kas" : "Buka kasir sekarang"}
+            {activeShift ? "Buka halaman kasir" : "Buka kasir sekarang"}
           </Link>
         </section>
 
