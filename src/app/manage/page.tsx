@@ -40,6 +40,12 @@ const groups: ManageGroup[] = [
     title: "Keuangan",
     items: [
       {
+        href: "/shifts",
+        title: "Kas & shift",
+        description: "Buka, tutup, dan periksa selisih uang laci",
+        icon: Clock3,
+      },
+      {
         href: "/reports",
         title: "Laporan",
         description: "Penjualan dan laba usaha",

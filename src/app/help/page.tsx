@@ -2,10 +2,10 @@ import Link from "next/link";
 import PageHeader from "@/components/page-header";
 
 const guides = [
-  ["Mulai shift", "Buka menu Kelola → Buka / tutup kasir. Hitung uang di laci, masukkan modal awal, lalu pilih Buka kasir."],
+  ["Mulai shift", "Di layar kasir, buka menu ⋮ di kanan atas lalu pilih Buka kasir. Bisa juga lewat Kelola → Kas & shift. Hitung uang di laci, masukkan modal awal, lalu pilih Buka kasir."],
   ["Mencatat penjualan", "Cari nama atau kode produk, ketuk produk untuk memasukkannya ke keranjang, pilih pembayaran, lalu selesaikan transaksi."],
-  ["Kas masuk dan keluar", "Di halaman shift yang sedang berjalan, pilih jenis pergerakan, isi nominal dan alasan, lalu simpan."],
-  ["Menutup shift", "Hitung uang fisik di laci, masukkan hasil hitung, lalu pilih Tutup shift. Selisih akan tercatat di laporan."],
+  ["Kas masuk dan keluar", "Di layar kasir, buka menu ⋮ lalu pilih Catat kas. Pilih jenis pergerakan, isi nominal dan alasan, lalu simpan."],
+  ["Menutup shift", "Buka menu ⋮ di layar kasir, pilih Tutup shift, masukkan uang fisik di laci, lalu konfirmasi. Laporan penutupan langsung tampil dan bisa dicetak."],
   ["Mengelola produk", "Buka menu Kelola → Produk & stok. Pemilik bisa menambah atau mengubah produk dan harga."],
 ];
 

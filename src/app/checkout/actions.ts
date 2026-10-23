@@ -18,8 +18,10 @@ export async function checkoutAction(formData: FormData) {
   if (typeof rawItems !== "string" || rawItems.length > 30000) fail("Keranjang tidak valid.");
   if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) fail("Sesi checkout tidak valid. Muat ulang halaman.");
   if (paymentMethod !== "cash" && paymentMethod !== "transfer" && paymentMethod !== "qris") fail("Metode pembayaran tidak valid.");
-  if (typeof discountRaw !== "string" || !/^\d+$/.test(discountRaw)) fail("Nominal diskon tidak valid.");
-  const discount = Number(discountRaw);
+  // An empty discount field means "no discount"; the form allows clearing it.
+  const discountValue = typeof discountRaw === "string" ? discountRaw.trim() : "";
+  if (discountValue !== "" && !/^\d+$/.test(discountValue)) fail("Nominal diskon tidak valid.");
+  const discount = discountValue === "" ? 0 : Number(discountValue);
   if (!Number.isSafeInteger(discount) || discount < 0) fail("Diskon harus berupa rupiah bulat nol atau lebih.");
   const cashReceived = paymentMethod === "cash" && typeof cashReceivedRaw === "string" && /^[0-9]+$/.test(cashReceivedRaw) ? Number(cashReceivedRaw) : null;
   if (paymentMethod === "cash" && (cashReceived === null || !Number.isSafeInteger(cashReceived) || cashReceived < 0)) fail("Nominal uang diterima harus berupa rupiah bulat nol atau lebih.");

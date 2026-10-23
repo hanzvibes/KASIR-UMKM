@@ -100,6 +100,12 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
   body { background-image: radial-gradient(ellipse at 50% -30%, rgb(222 237 225 / 56%), transparent 54%); }
 }
 
+/* On desktop the primary navigation becomes a fixed rail on the left; keep page
+   content clear of it instead of letting cards slide underneath. */
+@media (min-width: 1280px) {
+  body:has(nav[aria-label="Navigasi utama"]) main { padding-left: 5.5rem; }
+}
+
 @media print {
   @page { size: 80mm auto; margin: 0; }
   html, body {
@@ -144,4 +150,23 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
   [data-thermal-receipt] .receipt-items { margin-block: 3mm !important; padding-block: 2mm !important; }
   [data-thermal-receipt] .receipt-line { break-inside: avoid; margin-bottom: 2mm !important; }
   [data-thermal-receipt] .receipt-total { font-size: 11pt !important; }
+  /* Shift closing reports use the same thermal layout as receipts. */
+  body > main > div > section[data-print-report],
+  body > main > div > section[data-print-report] * {
+    visibility: visible !important;
+  }
+  body > main > div > section[data-print-report] {
+    position: static !important;
+    width: 74mm !important;
+    max-width: 74mm !important;
+    margin: 2mm auto !important;
+    padding: 3mm !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 9pt !important;
+  }
+  [data-print-report] * { visibility: visible !important; }
+  [data-print-report] { color: #000 !important; }
 }

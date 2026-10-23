@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
@@ -15,6 +16,11 @@ function subscribeOnline(callback: () => void) {
 
 export default function PwaControls() {
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  const pathname = usePathname();
+  // The cashier screen owns this corner (shift menu + payment bar), so keep the
+  // install/update prompts out of the way there. Checkout shows its own offline
+  // warning next to the payment controls.
+  const cashierScreen = pathname === "/checkout" || pathname === "/pos";
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
@@ -71,11 +77,11 @@ export default function PwaControls() {
   }
 
   return <>
-    {!online && <div role="status" className="fixed inset-x-0 top-0 z-[70] bg-amber-900 px-4 py-2 text-center text-sm font-semibold text-white">Offline · Penjualan tidak bisa disimpan</div>}
-    <div className="fixed right-3 top-3 z-[60] flex gap-2 print:hidden">
+    {!online && !cashierScreen && <div role="status" className="fixed inset-x-0 top-0 z-[70] bg-amber-900 px-4 py-2 text-center text-sm font-semibold text-white">Offline · Penjualan tidak bisa disimpan</div>}
+    {!cashierScreen && <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-2 md:bottom-24 xl:bottom-6">
       {(installPrompt || /iPhone|iPad|iPod/i.test(typeof navigator === "undefined" ? "" : navigator.userAgent)) && <button type="button" onClick={install} className="min-h-10 rounded-full border border-line bg-white px-3 text-xs font-semibold shadow">Install app</button>}
       {updateReady && <button type="button" onClick={refresh} className="min-h-10 rounded-full bg-brand px-3 text-xs font-semibold text-white shadow">Versi baru tersedia · Refresh</button>}
-    </div>
+    </div>}
     {showIosHelp && <div role="presentation" onClick={() => setShowIosHelp(false)} className="fixed inset-0 z-[80] grid items-end bg-black/40 p-3 sm:items-center sm:justify-center"><section role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()} className="rounded-2xl bg-white p-5 shadow-xl sm:max-w-sm"><h2 id="install-title" className="font-bold">Pasang Kasir UMKM</h2><p className="mt-2 text-sm leading-6 text-muted">Di Safari, ketuk tombol <strong>Bagikan</strong>, lalu pilih <strong>Tambahkan ke Layar Utama</strong>.</p><button type="button" onClick={() => setShowIosHelp(false)} className="mt-4 min-h-11 w-full rounded-xl bg-brand font-semibold text-white">Mengerti</button></section></div>}
   </>;
 }

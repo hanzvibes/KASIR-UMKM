@@ -1,9 +1,12 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
+import { Loader2, Minus, Plus, Search, ShoppingCart, Trash2, X, CheckCircle2, Star, Sparkles } from "lucide-react";
+import { formatIDR } from "@/lib/money";
+import { buildQuickCashOptions, calculateChange, parseDiscountInput } from "@/lib/pos";
 import { checkoutAction } from "./actions";
 
 type Product = {
@@ -22,9 +25,7 @@ type CartLine = { productId: string; variantOptionId: string | null; quantity: n
 type Category = { id: string; name: string };
 type CatalogPreferences = { favorites: string[]; picks: Record<string, number> };
 
-const rupiah = (value: number) => new Intl.NumberFormat("id-ID", {
-  style: "currency", currency: "IDR", maximumFractionDigits: 0,
-}).format(value);
+const rupiah = formatIDR;
 
 function subscribeOnline(callback: () => void) {
   window.addEventListener("online", callback);
@@ -43,8 +44,6 @@ export default function CheckoutClient({
   qrisImageUrl,
   idempotencyKey,
   errorMessage,
-  clearDraft = false,
-  successSaleId,
   dataError = false,
 }: {
   products: Product[];
@@ -54,8 +53,6 @@ export default function CheckoutClient({
   qrisImageUrl: string | null;
   idempotencyKey: string;
   errorMessage?: string;
-  clearDraft?: boolean;
-  successSaleId?: string;
   dataError?: boolean;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -68,17 +65,15 @@ export default function CheckoutClient({
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [categoryId, setCategoryId] = useState("all");
-  const [submitting, setSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
-  const clearedSuccessDraft = useRef(false);
+  const paymentFormRef = useRef<HTMLFormElement>(null);
   const [catalogPreferences, setCatalogPreferences] = useState<CatalogPreferences>({ favorites: [], picks: {} });
   const [preferencesReady, setPreferencesReady] = useState(false);
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   const draftKey = `kasir-umkm:checkout-draft-v1:${businessId}`;
   const legacyDraftKey = "kasir-umkm:checkout-draft-v1";
-  const successMarkerKey = `kasir-umkm:checkout-cleared-sale-v1:${businessId}`;
   const preferencesKey = `kasir-umkm:catalog-preferences-v1:${businessId}`;
   const offlineProductsKey = `kasir-umkm:offline-products-v1:${businessId}`;
 
@@ -109,17 +104,15 @@ export default function CheckoutClient({
       ? [{ name: product.name, available: product.stock_qty, requested: quantity }]
       : [];
   }).filter((conflict, index, list) => list.findIndex((item) => item.name === conflict.name) === index);
-  const discountAmount = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) ? Number(discount) : 0;
+  const discountResult = parseDiscountInput(discount, subtotal);
+  const discountError = discountResult.error;
+  // An invalid discount is not applied, so the displayed total never undercuts the real bill.
+  const discountAmount = discountError === null ? discountResult.amount : 0;
   const total = Math.max(0, subtotal - discountAmount);
-  const cashIsValid = paymentMethod !== "cash" || (cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= total);
-  const discountIsValid = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) && discountAmount <= subtotal;
-  const quickCashAmounts = [...new Set([
-    total,
-    Math.ceil(total / 10_000) * 10_000,
-    Math.ceil(total / 20_000) * 20_000,
-    50_000,
-    100_000,
-  ].filter((amount) => amount >= subtotal && amount > 0))];
+  const cashNumber = /^\d+$/.test(cashReceived) && Number.isSafeInteger(Number(cashReceived)) ? Number(cashReceived) : null;
+  const cashIsValid = paymentMethod !== "cash" || (cashNumber !== null && cashNumber >= total);
+  const changeDue = calculateChange(cashNumber, total);
+  const quickCashAmounts = buildQuickCashOptions(total);
   const quickProducts = products
     .filter((product) => !product.track_stock || (product.stock_qty ?? 0) > 0)
     .filter((product) => categoryId === "all" || product.category_id === categoryId)
@@ -130,22 +123,6 @@ export default function CheckoutClient({
 
   useEffect(() => {
     try {
-      if (clearDraft) {
-        clearedSuccessDraft.current = true;
-        const handledSaleId = sessionStorage.getItem(successMarkerKey);
-        if (successSaleId && handledSaleId !== successSaleId) {
-          sessionStorage.removeItem(draftKey);
-          sessionStorage.removeItem(legacyDraftKey);
-          sessionStorage.setItem(successMarkerKey, successSaleId);
-          // This effect hydrates browser storage after a successful server action.
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setCart([]);
-          setActiveIdempotencyKey(idempotencyKey);
-          setPaymentMethod("cash");
-          setCashReceived("");
-          return;
-        }
-      }
       let raw = sessionStorage.getItem(draftKey);
       if (!raw) {
         raw = sessionStorage.getItem(legacyDraftKey);
@@ -169,6 +146,8 @@ export default function CheckoutClient({
           if (optionId && !group?.options.some((option) => option.id === optionId)) return [];
           return [{ productId: product.id, variantOptionId: optionId, quantity: value.quantity }];
         });
+        // Hydrate the saved draft from browser storage after mount.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCart(restored);
         setDraftRestored(restored.length > 0);
         if (typeof draft.idempotencyKey === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft.idempotencyKey)) {
@@ -182,7 +161,7 @@ export default function CheckoutClient({
     } finally {
       setDraftReady(true);
     }
-  }, [clearDraft, draftKey, idempotencyKey, legacyDraftKey, productById, successMarkerKey, successSaleId, variantByProductId]);
+  }, [draftKey, legacyDraftKey, productById, variantByProductId]);
 
   useEffect(() => {
     try {
@@ -209,7 +188,7 @@ export default function CheckoutClient({
   useEffect(() => {
     if (!draftReady) return;
     try {
-      if ((clearDraft && !clearedSuccessDraft.current) || cart.length === 0) {
+      if (cart.length === 0) {
         sessionStorage.removeItem(draftKey);
         return;
       }
@@ -217,7 +196,7 @@ export default function CheckoutClient({
     } catch {
       // Checkout remains usable when browser storage is unavailable.
     }
-  }, [activeIdempotencyKey, cart, cashReceived, clearDraft, draftKey, draftReady, paymentMethod]);
+  }, [activeIdempotencyKey, cart, cashReceived, draftKey, draftReady, paymentMethod]);
 
   useEffect(() => {
     try {
@@ -256,6 +235,19 @@ export default function CheckoutClient({
     const openPayment = (event: KeyboardEvent) => {
       if (event.key !== "F2" || !cart.length || variantProductId) return;
       event.preventDefault();
+      // On desktop the payment form is already on screen; jumping to a duplicate
+      // sheet would only slow the cashier down. Focus the cash field instead.
+      if (window.matchMedia("(min-width: 1280px)").matches) {
+        const cashInput = paymentFormRef.current?.querySelector<HTMLInputElement>('input[name="cash_received"]');
+        if (cashInput) {
+          cashInput.focus();
+          cashInput.select();
+          return;
+        }
+        paymentFormRef.current?.scrollIntoView({ block: "nearest" });
+        paymentFormRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+        return;
+      }
       setCartOpen(true);
     };
     window.addEventListener("keydown", focusSearch);
@@ -357,6 +349,10 @@ export default function CheckoutClient({
 
   // Barcode scanners and SKU typing end with Enter: add the matching product immediately.
   function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      if (search) setSearch("");
+      return;
+    }
     if (event.key !== "Enter") return;
     const query = search.trim().toLocaleLowerCase("id-ID");
     if (!query) return;
@@ -373,7 +369,7 @@ export default function CheckoutClient({
       event.preventDefault();
       return;
     }
-    if (submitting || cart.length === 0 || !cashIsValid || !discountIsValid || stockConflicts.length > 0) {
+    if (cart.length === 0 || !cashIsValid || discountError !== null || stockConflicts.length > 0) {
       event.preventDefault();
       return;
     }
@@ -387,7 +383,6 @@ export default function CheckoutClient({
     } catch {
       // Checkout still proceeds if the browser blocks session storage.
     }
-    setSubmitting(true);
   }
 
   const serializedItems = JSON.stringify(cart.map((line) => ({
@@ -398,7 +393,6 @@ export default function CheckoutClient({
 
   const cartContent = (
     <>
-      {errorMessage && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>}
       {cart.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line px-4 py-8 text-center">
           <ShoppingCart size={25} className="mx-auto text-muted" />
@@ -433,23 +427,35 @@ export default function CheckoutClient({
         </ul>
       )}
       <div className="mt-3 border-t border-line pt-4">
+        {discountAmount > 0 && (
+          <dl className="mb-2 space-y-1.5 px-1 text-sm">
+            <div className="flex items-center justify-between gap-3 text-muted"><dt>Subtotal</dt><dd className="tabular-nums">{rupiah(subtotal)}</dd></div>
+            <div className="flex items-center justify-between gap-3 text-red-700"><dt>Diskon</dt><dd className="tabular-nums">−{rupiah(discountAmount)}</dd></div>
+          </dl>
+        )}
         <div className="flex items-end justify-between gap-3 rounded-2xl bg-brand-soft/60 px-4 py-3">
           <span className="text-sm font-medium text-muted">Total tagihan</span>
           <strong className="text-3xl font-extrabold tracking-tight tabular-nums text-brand">{rupiah(total)}</strong>
         </div>
-        <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
+        <form ref={paymentFormRef} action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
           <input type="hidden" name="items" value={serializedItems} />
           <input type="hidden" name="idempotency_key" value={activeIdempotencyKey} />
           <details className="group rounded-xl border border-line bg-white">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold marker:hidden">
-              <span>Tambahkan diskon</span>
-              <span className="text-xs font-medium text-muted group-open:hidden">Opsional</span>
+              <span>Diskon</span>
+              <span className={`text-xs font-semibold group-open:hidden ${discountError ? "text-red-700" : "text-brand"}`}>
+                {discountError ? "Periksa diskon" : discountAmount > 0 ? `−${rupiah(discountAmount)}` : "Opsional"}
+              </span>
             </summary>
             <div className="border-t border-line p-3">
               <label className="grid gap-1.5 text-sm font-medium">Diskon dalam rupiah
-                <input name="discount" type="number" min="0" max={subtotal} step="1" inputMode="numeric" value={discount} onChange={(event) => setDiscount(event.target.value)} aria-invalid={!discountIsValid} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
+                <input name="discount" type="number" min="0" max={subtotal} step="1" inputMode="numeric" value={discount}
+                  onChange={(event) => setDiscount(event.target.value)} onFocus={(event) => event.currentTarget.select()}
+                  aria-invalid={discountError !== null}
+                  className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
               </label>
-              {!discountIsValid && <p role="alert" className="mt-1.5 text-xs text-red-700">Diskon tidak boleh melebihi subtotal {rupiah(subtotal)}.</p>}
+              {discountError === "invalid" && <p role="alert" className="mt-1.5 text-xs text-red-700">Masukkan angka rupiah bulat tanpa titik, contoh 5000.</p>}
+              {discountError === "over_subtotal" && <p role="alert" className="mt-1.5 text-xs text-red-700">Diskon tidak boleh melebihi subtotal {rupiah(subtotal)}.</p>}
             </div>
           </details>
           <div className="grid grid-cols-3 gap-2" aria-label="Metode pembayaran">
@@ -470,14 +476,14 @@ export default function CheckoutClient({
             <div className="space-y-2">
               <label className="grid gap-1.5 text-sm font-medium">Uang diterima
                 <input name="cash_received" type="number" inputMode="numeric" min={total} step="1" required
-                  value={cashReceived} onChange={(event) => setCashReceived(event.target.value)}
+                  value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} onFocus={(event) => event.currentTarget.select()}
                   placeholder={String(total || 0)} className="w-full rounded-xl border border-line px-3 py-3 text-base font-normal outline-none focus:border-brand focus:ring-4 focus:ring-brand/10" />
               </label>
-              {total > 0 && (
+              {quickCashAmounts.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {quickCashAmounts.map((amount) => (
                     <button key={amount} type="button" onClick={() => setCashReceived(String(amount))}
-                      className="min-h-10 rounded-full border border-line px-3 py-2 text-xs font-semibold text-muted active:bg-canvas">
+                      className={`min-h-10 rounded-full border px-3 py-2 text-xs font-semibold active:bg-canvas ${cashReceived === String(amount) ? "border-brand bg-brand-soft text-brand" : "border-line text-muted"}`}>
                         {amount === total ? "Uang pas" : rupiah(amount)}
                     </button>
                   ))}
@@ -485,15 +491,18 @@ export default function CheckoutClient({
               )}
               <div className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5 text-sm">
                 <span className="text-muted">Kembalian</span>
-                <strong className="tabular-nums">{cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= total ? rupiah(Number(cashReceived) - total) : "—"}</strong>
+                <strong className={`tabular-nums ${changeDue !== null && changeDue > 0 ? "text-brand" : ""}`}>{changeDue !== null ? rupiah(changeDue) : "—"}</strong>
               </div>
             </div>
           )}
           {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
-          <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online || !cashIsValid || !discountIsValid || stockConflicts.length > 0}
-            className="press sticky bottom-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(29,117,75,0.22)] transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50 xl:static xl:shadow-soft xl:mt-auto xl:bottom-auto">
-            {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan · {rupiah(total)}</>}
-          </button>
+          {errorMessage && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>}
+          {stockConflicts.length > 0 && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-800">Stok berkurang untuk {stockConflicts.map((conflict) => conflict.name).join(", ")}. Kurangi jumlahnya di keranjang sebelum membayar.</p>}
+          <PayButton
+            total={total}
+            online={online}
+            disabled={cart.length === 0 || products.length === 0 || !cashIsValid || discountError !== null || stockConflicts.length > 0}
+          />
           {paymentMethod === "cash" && !cashIsValid && <p className="text-center text-xs text-amber-800">Masukkan uang diterima atau pilih nominal cepat untuk melanjutkan.</p>}
           <p className="text-center text-[11px] leading-4 text-muted">Harga dan stok diverifikasi ulang saat transaksi disimpan.</p>
         </form>
@@ -529,9 +538,9 @@ export default function CheckoutClient({
               <h2 id="variant-picker-title" className="mt-1 text-xl font-bold">{product.name}</h2>
               <p className="mt-1 text-sm text-muted">Pilih {group.name.toLocaleLowerCase("id-ID")} untuk melanjutkan.</p>
             </div>
-            <div className="space-y-2">{group.options.map((option) => {
+            <div className="space-y-2">{group.options.map((option, index) => {
               const price = Number(product.price) + option.price_delta;
-              return <button key={option.id} type="button" onClick={() => chooseVariant(option.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left hover:border-brand hover:bg-brand-soft/30"><span className="font-semibold">{option.name}</span><span className="text-sm font-bold tabular-nums">{rupiah(price)}{option.price_delta !== 0 && <span className="ml-1 text-xs font-normal text-muted">({option.price_delta > 0 ? "+" : "−"}{rupiah(Math.abs(option.price_delta))})</span>}</span></button>;
+              return <button key={option.id} type="button" autoFocus={index === 0} onClick={() => chooseVariant(option.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left hover:border-brand hover:bg-brand-soft/30"><span className="font-semibold">{option.name}</span><span className="text-sm font-bold tabular-nums">{rupiah(price)}{option.price_delta !== 0 && <span className="ml-1 text-xs font-normal text-muted">({option.price_delta > 0 ? "+" : "−"}{rupiah(Math.abs(option.price_delta))})</span>}</span></button>;
             })}</div>
             {!group.required && <button type="button" onClick={() => chooseVariant(null)} className="mt-2 min-h-12 w-full rounded-xl border border-dashed border-line px-4 text-sm font-semibold text-muted">Tanpa {group.name.toLocaleLowerCase("id-ID")} · {rupiah(Number(product.price))}</button>}
             <button type="button" onClick={() => setVariantProductId(null)} className="mt-4 min-h-11 w-full rounded-xl bg-canvas text-sm font-semibold text-muted">Batal</button>
@@ -610,15 +619,14 @@ export default function CheckoutClient({
                   <article key={product.id} className={`relative flex min-h-36 flex-col rounded-2xl border bg-white transition-all duration-150 ${lastAddedId === product.id ? "border-brand bg-brand-soft/60 shadow-soft" : "border-line hover:border-brand hover:bg-brand-soft/30"} ${outOfStock ? "opacity-60" : ""}`}>
                     <button type="button" disabled={outOfStock} onClick={() => addProduct(product)} aria-label={`Tambah ${product.name} ke keranjang`}
                       className="press flex min-h-36 flex-1 flex-col rounded-2xl p-3.5 pr-10 text-left disabled:cursor-not-allowed disabled:opacity-60">
-                      {lastAddedId === product.id && <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-brand text-white animate-pop"><Check size={13} strokeWidth={3} /></span>}
-                      {quantityInCart > 0 && <span key={quantityInCart} className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white animate-pop">{quantityInCart}</span>}
+                      {quantityInCart > 0 && <span key={quantityInCart} className="absolute right-12 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white animate-pop">{quantityInCart}</span>}
                       <span className="line-clamp-2 text-sm font-semibold leading-5">{product.name}</span>
                       <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
                       <span className="mt-auto pt-4 text-base font-extrabold text-brand">{productVariant?.options.length ? `Mulai ${rupiah(Math.min(...productVariant.options.map((option) => Number(product.price) + option.price_delta)))}` : rupiah(Number(product.price))}</span>
                       {productVariant?.options.length ? <span className="mt-1 text-[11px] text-muted">Pilih {productVariant.name.toLocaleLowerCase("id-ID")}</span> : null}
                       {outOfStock ? <span className="mt-1 text-[11px] font-semibold text-red-600">Stok habis</span> : product.track_stock && <span className="mt-1 text-[11px] text-muted">Stok {product.stock_qty ?? 0}</span>}
                     </button>
-                    <button type="button" aria-label={`${catalogPreferences.favorites.includes(product.id) ? "Hapus dari" : "Tambah ke"} favorit ${product.name}`} aria-pressed={catalogPreferences.favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)} className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-full text-amber-600 hover:bg-amber-50">
+                    <button type="button" aria-label={`${catalogPreferences.favorites.includes(product.id) ? "Hapus dari" : "Tambah ke"} favorit ${product.name}`} aria-pressed={catalogPreferences.favorites.includes(product.id)} onClick={() => toggleFavorite(product.id)} className="absolute right-1 top-1 grid h-10 w-10 place-items-center rounded-full text-amber-600 hover:bg-amber-50">
                       <Star size={17} fill={catalogPreferences.favorites.includes(product.id) ? "currentColor" : "none"} />
                     </button>
                   </article>
@@ -630,7 +638,7 @@ export default function CheckoutClient({
         <div className="hidden xl:block">{cartPanel}</div>
       </div>
 
-      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 animate-rise-in xl:hidden xl:fixed xl:inset-auto xl:bottom-6 xl:left-6 xl:right-auto xl:w-auto xl:max-w-[calc(100vw-2rem)]">
+      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 animate-rise-in md:bottom-[calc(6rem+env(safe-area-inset-bottom))] xl:hidden">
         <button type="button" onClick={() => setCartOpen(true)} aria-label={`Buka pembayaran, ${itemCount} barang, total ${rupiah(total)}`}
           className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)] active:scale-[0.995]">
           <span className="flex min-w-0 items-center gap-3">
@@ -650,13 +658,13 @@ export default function CheckoutClient({
                 <div><p className="text-xs font-bold uppercase tracking-wider text-brand">Transaksi berjalan</p><h2 id="mobile-cart-title" className="mt-1 text-xl font-bold">Keranjang & pembayaran</h2></div>
                 <div className="flex items-center gap-1">
                   {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Kosongkan</button>}
-                  <button type="button" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
+                  <button type="button" autoFocus aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
                 </div>
               </div>
               <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div><p className="text-sm font-bold">{itemCount} barang</p><p className="mt-1 text-xs text-muted">{cart.length} jenis produk</p></div>
-                  <strong className="text-lg tabular-nums">{rupiah(subtotal)}</strong>
+                  <strong className="text-lg tabular-nums">{rupiah(total)}</strong>
                 </div>
                 {cartContent}
               </section>
@@ -665,5 +673,27 @@ export default function CheckoutClient({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Uses the form's real pending state, so a failed checkout always releases the
+ * button again and a second tap cannot start a duplicate request.
+ */
+function PayButton({ total, online, disabled }: { total: number; online: boolean; disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled || !online || pending}
+      aria-busy={pending}
+      className="press sticky bottom-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(29,117,75,0.22)] transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50 xl:static xl:bottom-auto xl:mt-auto xl:shadow-soft"
+    >
+      {!online
+        ? "Checkout tersedia saat online"
+        : pending
+          ? <><Loader2 size={17} className="animate-spin" aria-hidden="true" /> Menyimpan pembayaran…</>
+          : <><CheckCircle2 size={17} aria-hidden="true" /> Bayar · {rupiah(total)}</>}
+    </button>
   );
 }

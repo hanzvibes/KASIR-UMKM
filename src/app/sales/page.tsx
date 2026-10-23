@@ -36,7 +36,7 @@ export default async function SalesHistoryPage({ searchParams }: { searchParams:
 
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
-      <PageHeader title="Transaksi" subtitle="Cari transaksi menurut status dan metode pembayaran." width="max-w-5xl" />
+      <PageHeader title="Transaksi" subtitle="Filter transaksi menurut status dan metode pembayaran." width="max-w-5xl" />
       <div className="mx-auto max-w-5xl space-y-3 p-4 pb-24 sm:p-7">
         {error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">Riwayat transaksi gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database.</p>}
         {!error && pageSales.length === 0 ? <div className="rounded-2xl border border-dashed border-line bg-white p-10 text-center"><ReceiptText size={28} className="mx-auto text-muted" /><h2 className="mt-3 font-semibold">{page > 1 ? "Tidak ada transaksi di halaman ini" : "Belum ada transaksi"}</h2><p className="mt-1 text-sm text-muted">{page > 1 ? "Coba halaman sebelumnya untuk melihat transaksi." : "Transaksi yang disimpan akan muncul di sini."}</p><Link href={page > 1 ? `/sales?page=${page - 1}` : "/checkout"} className="mt-5 inline-flex rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">{page > 1 ? "Halaman sebelumnya" : "Buka kasir"}</Link></div> : !error ? <SalesFilters sales={pageSales} /> : null}

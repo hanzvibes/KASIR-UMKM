@@ -16,6 +16,7 @@ export default function ActivityPanel() {
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -27,8 +28,9 @@ export default function ActivityPanel() {
     return () => { document.body.style.overflow = oldOverflow; window.removeEventListener("keydown", close); };
   }, [open]);
 
-  async function loadPage(nextPage: number) {
-    setLoading(true);
+  async function loadPage(nextPage: number, options: { silent?: boolean } = {}) {
+    if (options.silent) setRefreshing(true);
+    else setLoading(true);
     setError(false);
     try {
       const response = await fetch(`/api/sales?page=${nextPage}`, { cache: "no-store" });
@@ -41,12 +43,16 @@ export default function ActivityPanel() {
       setError(true);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
   function showPanel() {
     setOpen(true);
-    if (sales.length === 0 && !loading) void loadPage(1);
+    if (loading || refreshing) return;
+    // Always refresh on open: the cashier may have completed a sale since the
+    // list was cached, and the panel exists to confirm the latest transaction.
+    void loadPage(1, { silent: sales.length > 0 });
   }
 
   return <>
@@ -61,14 +67,15 @@ export default function ActivityPanel() {
         </header>
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {loading && <p role="status" className="py-8 text-center text-sm text-muted">Memuat transaksi…</p>}
-          {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Transaksi gagal dimuat. <button type="button" onClick={() => void loadPage(page)} className="font-bold underline">Coba lagi</button></div>}
+          {refreshing && <p role="status" className="mb-2 text-center text-xs text-muted">Memperbarui transaksi…</p>}
+          {error && <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Transaksi terbaru gagal dimuat. {sales.length > 0 ? "Daftar di bawah mungkin belum terbaru. " : ""}<button type="button" onClick={() => void loadPage(page)} className="font-bold underline">Coba lagi</button></div>}
           {!loading && !error && sales.length === 0 && <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center"><ReceiptText size={26} className="mx-auto text-muted" /><p className="mt-3 font-semibold">Belum ada transaksi</p></div>}
-          {!loading && !error && <div className="overflow-hidden rounded-2xl border border-line bg-white">{sales.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} onClick={() => setOpen(false)} className="flex items-center gap-3 border-b border-line p-4 last:border-0 hover:bg-canvas">
+          {sales.length > 0 && <div className="overflow-hidden rounded-2xl border border-line bg-white">{sales.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} onClick={() => setOpen(false)} className="flex items-center gap-3 border-b border-line p-4 last:border-0 hover:bg-canvas">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${sale.status === "voided" ? "bg-red-50 text-red-700" : "bg-brand-soft text-brand"}`} aria-hidden="true">{sale.status === "voided" ? "×" : "✓"}</span>
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{sale.invoice_no ?? `Struk #${sale.id.slice(0, 8).toUpperCase()}`}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentLabels[sale.payment_method] ?? sale.payment_method}</span></span>
             <span className="text-right"><span className="block text-sm font-bold tabular-nums">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs ${sale.status === "voided" ? "text-red-700" : "text-green-700"}`}>{sale.status === "voided" ? "Dibatalkan" : "Tersimpan"}</span></span>
           </Link>)}</div>}
-          {!loading && !error && sales.length > 0 && <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3"><span className="text-sm text-muted">Halaman {page}</span><div className="flex gap-2">{page > 1 && <button type="button" onClick={() => void loadPage(page - 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Sebelumnya</button>}{hasNextPage && <button type="button" onClick={() => void loadPage(page + 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Berikutnya</button>}</div></div>}
+          {!loading && sales.length > 0 && <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3"><span className="text-sm text-muted">Halaman {page}</span><div className="flex gap-2">{page > 1 && <button type="button" onClick={() => void loadPage(page - 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Sebelumnya</button>}{hasNextPage && <button type="button" onClick={() => void loadPage(page + 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Berikutnya</button>}</div></div>}
         </div>
       </section>
     </div>, document.body)}
