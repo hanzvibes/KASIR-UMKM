@@ -12,7 +12,7 @@ export default function CashMovementDialog({ shiftId }: { shiftId: string }) {
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-line px-3 text-sm font-semibold hover:bg-canvas"
+        className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-xl px-3 text-sm font-semibold hover:bg-canvas"
       >
         <Banknote size={17} /> Catat kas
       </button>

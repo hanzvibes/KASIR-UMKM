@@ -8,6 +8,7 @@ import {
   Settings,
   Store,
   TriangleAlert,
+  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
@@ -39,9 +40,15 @@ const groups: ManageGroup[] = [
     title: "Keuangan",
     items: [
       {
+        href: "/reports",
+        title: "Laporan",
+        description: "Penjualan dan laba usaha",
+        icon: TrendingUp,
+      },
+      {
         href: "/expenses",
         title: "Pengeluaran",
-        description: "Catat biaya operasional usaha",
+        description: "Catat biaya usaha",
         icon: Wallet,
       },
     ],

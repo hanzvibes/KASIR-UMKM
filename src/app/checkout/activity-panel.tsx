@@ -50,7 +50,7 @@ export default function ActivityPanel() {
   }
 
   return <>
-    <button type="button" onClick={showPanel} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold text-ink hover:bg-canvas" aria-label="Buka transaksi terakhir">
+    <button type="button" onClick={showPanel} className="inline-flex min-h-11 w-full items-center justify-start gap-2 rounded-xl px-3 text-sm font-semibold text-ink hover:bg-canvas" aria-label="Buka transaksi terakhir">
       <ReceiptText size={17} /><span>Transaksi</span>
     </button>
     {open && createPortal(<div className="fixed inset-0 z-[70] flex justify-end bg-black/40 backdrop-blur-[1px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
