@@ -4,6 +4,7 @@ import { CheckCircle2, ShoppingCart } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CheckoutClient from "./checkout-client";
+import ActivityPanel from "./activity-panel";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
 
@@ -69,7 +70,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               Kasir · shift dibuka {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(activeShift.opened_at))}
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand">
+          <ActivityPanel />
+          <span className="hidden shrink-0 items-center gap-2 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand sm:inline-flex">
             <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" /> Shift aktif
           </span>
         </div>

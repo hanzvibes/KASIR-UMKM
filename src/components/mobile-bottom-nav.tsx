@@ -6,9 +6,9 @@ import { LayoutGrid, ReceiptText, ShoppingCart, TrendingUp } from "lucide-react"
 
 const items = [
   { label: "Kasir", href: "/checkout", Icon: ShoppingCart },
-  { label: "Transaksi", href: "/sales", Icon: ReceiptText },
   { label: "Laporan", href: "/reports", Icon: TrendingUp },
   { label: "Kelola", href: "/manage", Icon: LayoutGrid },
+  { label: "Lainnya", href: "/sales", Icon: ReceiptText },
 ];
 
 export default function MobileBottomNav() {
@@ -20,7 +20,7 @@ export default function MobileBottomNav() {
     >
       <ul className="mx-auto grid max-w-2xl grid-cols-4 gap-1 px-2 md:px-0">
         {items.map(({ label, href, Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = label === "Lainnya" ? pathname.startsWith("/sales") || pathname.startsWith("/shifts") : pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href}>
               <Link
