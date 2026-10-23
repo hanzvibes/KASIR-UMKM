@@ -433,9 +433,9 @@ export default function CheckoutClient({
         </ul>
       )}
       <div className="mt-3 border-t border-line pt-4">
-        <div className="flex items-end justify-between gap-3">
-          <span className="text-sm text-muted">Total tagihan</span>
-          <strong className="text-2xl font-bold tracking-tight tabular-nums">{rupiah(total)}</strong>
+        <div className="flex items-end justify-between gap-3 rounded-2xl bg-brand-soft/60 px-4 py-3">
+          <span className="text-sm font-medium text-muted">Total tagihan</span>
+          <strong className="text-3xl font-extrabold tracking-tight tabular-nums text-brand">{rupiah(total)}</strong>
         </div>
         <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
           <input type="hidden" name="items" value={serializedItems} />
@@ -491,7 +491,7 @@ export default function CheckoutClient({
           )}
           {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
           <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online || !cashIsValid || !discountIsValid || stockConflicts.length > 0}
-            className="press sticky bottom-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(29,117,75,0.22)] transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50 xl:static xl:shadow-soft">
+            className="press sticky bottom-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(29,117,75,0.22)] transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50 xl:static xl:shadow-soft xl:mt-auto xl:bottom-auto">
             {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan · {rupiah(total)}</>}
           </button>
           {paymentMethod === "cash" && !cashIsValid && <p className="text-center text-xs text-amber-800">Masukkan uang diterima atau pilih nominal cepat untuk melanjutkan.</p>}
@@ -502,7 +502,7 @@ export default function CheckoutClient({
   );
 
   const cartPanel = (
-    <section className="h-fit rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5 xl:sticky xl:top-20">
+    <section className="h-fit rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5 xl:sticky xl:top-16">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div><h2 className="font-bold">Keranjang</h2><p className="mt-1 text-xs text-muted">{itemCount} barang · {cart.length} jenis</p></div>
         {cart.length > 0 ? (
@@ -549,7 +549,7 @@ export default function CheckoutClient({
               <h2 className="text-lg font-bold">Produk</h2>
               <p className="mt-1 text-xs text-muted">{filteredProducts.length} tersedia</p>
             </div>
-            <span className="hidden shrink-0 rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand sm:inline-flex">Cari / · Bayar F2</span>
+            <span className="hidden shrink-0 rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand xl:inline-flex">Cari / · Bayar F2</span>
           </div>
 
           <div className={`sticky z-10 -mx-4 -mt-1 mb-3 border-b border-line/70 bg-white/95 px-4 pb-2 pt-2 backdrop-blur transition-[top] sm:-mx-5 sm:px-5 ${cartOpen ? "top-0" : "top-16"}`}>
@@ -601,20 +601,20 @@ export default function CheckoutClient({
           ) : filteredProducts.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">Produk tidak ditemukan. Coba kata kunci atau kategori lain.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-3">
               {filteredProducts.map((product) => {
                 const outOfStock = product.track_stock && (product.stock_qty ?? 0) < 1;
                 const quantityInCart = cart.filter((line) => line.productId === product.id).reduce((sum, line) => sum + line.quantity, 0);
                 const productVariant = variantByProductId.get(product.id);
                 return (
-                  <article key={product.id} className={`relative flex min-h-32 flex-col rounded-xl border bg-white transition-all duration-150 ${lastAddedId === product.id ? "border-brand bg-brand-soft/60 shadow-soft" : "border-line hover:border-brand hover:bg-brand-soft/30"} ${outOfStock ? "opacity-50" : ""}`}>
+                  <article key={product.id} className={`relative flex min-h-36 flex-col rounded-2xl border bg-white transition-all duration-150 ${lastAddedId === product.id ? "border-brand bg-brand-soft/60 shadow-soft" : "border-line hover:border-brand hover:bg-brand-soft/30"} ${outOfStock ? "opacity-60" : ""}`}>
                     <button type="button" disabled={outOfStock} onClick={() => addProduct(product)} aria-label={`Tambah ${product.name} ke keranjang`}
-                      className="press flex min-h-32 flex-1 flex-col rounded-xl p-3 pr-10 text-left disabled:cursor-not-allowed">
+                      className="press flex min-h-36 flex-1 flex-col rounded-2xl p-3.5 pr-10 text-left disabled:cursor-not-allowed disabled:opacity-60">
                       {lastAddedId === product.id && <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-brand text-white animate-pop"><Check size={13} strokeWidth={3} /></span>}
                       {quantityInCart > 0 && <span key={quantityInCart} className="absolute right-10 top-2 grid h-6 min-w-6 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white animate-pop">{quantityInCart}</span>}
                       <span className="line-clamp-2 text-sm font-semibold leading-5">{product.name}</span>
                       <span className="mt-1 text-[11px] text-muted">{product.sku || product.unit}</span>
-                      <span className="mt-auto pt-4 text-sm font-extrabold text-brand">{productVariant?.options.length ? `Mulai ${rupiah(Math.min(...productVariant.options.map((option) => Number(product.price) + option.price_delta)))}` : rupiah(Number(product.price))}</span>
+                      <span className="mt-auto pt-4 text-base font-extrabold text-brand">{productVariant?.options.length ? `Mulai ${rupiah(Math.min(...productVariant.options.map((option) => Number(product.price) + option.price_delta)))}` : rupiah(Number(product.price))}</span>
                       {productVariant?.options.length ? <span className="mt-1 text-[11px] text-muted">Pilih {productVariant.name.toLocaleLowerCase("id-ID")}</span> : null}
                       {outOfStock ? <span className="mt-1 text-[11px] font-semibold text-red-600">Stok habis</span> : product.track_stock && <span className="mt-1 text-[11px] text-muted">Stok {product.stock_qty ?? 0}</span>}
                     </button>
@@ -630,7 +630,7 @@ export default function CheckoutClient({
         <div className="hidden xl:block">{cartPanel}</div>
       </div>
 
-      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 animate-rise-in xl:hidden">
+      {itemCount > 0 && <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-3 animate-rise-in xl:hidden xl:fixed xl:inset-auto xl:bottom-6 xl:left-6 xl:right-auto xl:w-auto xl:max-w-[calc(100vw-2rem)]">
         <button type="button" onClick={() => setCartOpen(true)} aria-label={`Buka pembayaran, ${itemCount} barang, total ${rupiah(total)}`}
           className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[#172d22] px-4 py-3.5 text-left text-white shadow-[0_8px_32px_rgba(15,35,24,0.28)] active:scale-[0.995]">
           <span className="flex min-w-0 items-center gap-3">

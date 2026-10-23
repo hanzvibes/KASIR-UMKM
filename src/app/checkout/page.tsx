@@ -84,17 +84,12 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   return (
     <main className="min-h-screen bg-canvas pb-24 md:pb-28">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-7">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={18} /></span>
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-7">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-white"><ShoppingCart size={17} /></span>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-bold leading-tight sm:text-lg">{business?.name ?? "Kasir"}</h1>
-            <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">
-              Kasir · shift dibuka {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(activeShift.opened_at))}
-            </p>
+            <h1 className="truncate text-sm font-bold leading-tight sm:text-base">{business?.name ?? "Kasir"}</h1>
           </div>
-          <span className="hidden shrink-0 items-center gap-2 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand sm:inline-flex">
-            <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" /> Shift aktif
-          </span>
+          <span className="hidden shrink-0 text-xs text-muted sm:inline">Shift · {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(activeShift.opened_at))}</span>
           <CashierMenu shiftId={activeShift.id} openingCash={Number(activeShift.opening_cash)} expectedCash={expectedCash} cashIn={cashIn} cashOut={cashOut} movements={movements ?? []} />
         </div>
       </header>
