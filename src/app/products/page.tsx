@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PageHeader from "@/components/page-header";
 import VariantEditor from "./variant-editor";
+import StockAlerts from "./stock-alerts";
+import { LOW_STOCK_THRESHOLD, sanitizeSearchTerm, stockState } from "@/lib/pos";
 import { createCategory, updateCategory, deleteCategory, createProduct, updateProduct, setProductActive, archiveProduct } from "./actions";
 
 type SearchParams = Promise<{ error?: string; success?: string; search?: string; page?: string }>;
@@ -18,6 +20,7 @@ const successMessages: Record<string, string> = {
   product_deactivated: "Produk dinonaktifkan.",
   product_archived: "Produk diarsipkan. Riwayat penjualan tetap tersimpan.",
   variants_saved: "Varian produk berhasil disimpan.",
+  stock_updated: "Stok produk berhasil ditambahkan.",
 };
 
 const money = (value: number | string | null) =>
@@ -37,7 +40,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const membership = memberships?.[0];
   if (membershipError || !membership) redirect("/onboarding");
 
-  const searchTerm = (params.search ?? "").trim().replace(/[^\p{L}\p{N} ._-]/gu, "").slice(0, 80);
+  const searchTerm = sanitizeSearchTerm(params.search ?? "");
   const searchWords = searchTerm.split(/\s+/).filter((word) => word.length > 1).slice(0, 6);
   if (searchWords.length === 0 && searchTerm) searchWords.push(searchTerm);
   const parsedPage = Number.parseInt(params.page ?? "1", 10);
@@ -47,9 +50,20 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     .eq("business_id", membership.business_id).is("deleted_at", null);
   if (searchWords.length > 0) productQuery = productQuery.or(searchWords.flatMap((word) => [`name.ilike.%${word}%`, `sku.ilike.%${word}%`]).join(","));
 
-  const [{ data: categories, error: categoriesError }, { data: products, error: productsError }] = await Promise.all([
+  const [{ data: categories, error: categoriesError }, { data: products, error: productsError }, { data: stockAlertProducts, count: stockAlertCount, error: stockAlertsError }] = await Promise.all([
     supabase.from("kasir_categories").select("id, name").eq("business_id", membership.business_id).order("name"),
     productQuery.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize),
+    // Global alert list: not limited to the page or search below, so a product
+    // that is nearly empty never disappears just because it sits on page 3.
+    supabase.from("kasir_products")
+      .select("id, name, unit, stock_qty, track_stock", { count: "exact" })
+      .eq("business_id", membership.business_id)
+      .eq("is_active", true)
+      .eq("track_stock", true)
+      .is("deleted_at", null)
+      .or(`stock_qty.is.null,stock_qty.lte.${LOW_STOCK_THRESHOLD}`)
+      .order("stock_qty", { ascending: true, nullsFirst: true })
+      .limit(20),
   ]);
 
   const categoryList = categories ?? [];
@@ -70,8 +84,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     options: (variantOptions ?? []).filter((option) => option.group_id === group.id).map((option) => ({ name: option.name, price_delta: Number(option.price_delta) })),
   }]));
   const categoryNames = new Map(categoryList.map((category) => [category.id, category.name]));
-  const lowStockCount = productList.filter((product) => product.is_active && product.track_stock && Number(product.stock_qty ?? 0) <= 5).length;
-  const outOfStockCount = productList.filter((product) => product.is_active && product.track_stock && Number(product.stock_qty ?? 0) <= 0).length;
   const canManage = membership.role === "owner";
   const pageHref = (nextPage: number) => `/products?${new URLSearchParams({ ...(searchTerm ? { search: searchTerm } : {}), page: String(nextPage) })}`;
 
@@ -83,7 +95,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.success && successMessages[params.success] && <p role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessages[params.success]}</p>}
         {(categoriesError || productsError || variantsError || optionsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk, kategori, atau varian gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database dan migrasi.</p>}
-        {!productsError && (lowStockCount > 0 || outOfStockCount > 0) && <div className="grid gap-2 sm:grid-cols-2" aria-label="Ringkasan stok"><div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"><strong>{lowStockCount}</strong> produk aktif stoknya 5 atau kurang di halaman ini.</div>{outOfStockCount > 0 && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"><strong>{outOfStockCount}</strong> produk habis dan tidak dapat dijual.</div>}<p className="text-xs text-muted sm:col-span-2">Ringkasan ini mengikuti halaman dan hasil pencarian yang sedang dibuka.</p></div>}
+        <StockAlerts
+          products={stockAlertProducts ?? []}
+          total={stockAlertCount ?? 0}
+          canManage={canManage}
+          error={Boolean(stockAlertsError)}
+        />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
           <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
@@ -153,7 +170,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                   <summary className="flex cursor-pointer list-none items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><PackagePlus size={18} /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{product.name}</span><span className="mt-1 block text-xs text-muted">{categoryNames.get(product.category_id ?? "") ?? "Tanpa kategori"} · {product.sku || "Tanpa SKU"}{product.track_stock ? ` · Stok ${product.stock_qty ?? 0} ${product.unit}` : " · Stok tidak dilacak"}</span></span>
-                    <span className="text-right"><span className="block text-sm font-semibold">{money(product.price)}</span><span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!product.is_active ? "bg-canvas text-muted" : product.track_stock && Number(product.stock_qty ?? 0) <= 0 ? "bg-red-100 text-red-800" : product.track_stock && Number(product.stock_qty ?? 0) <= 5 ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-800"}`}>{!product.is_active ? "Nonaktif" : product.track_stock && Number(product.stock_qty ?? 0) <= 0 ? "Stok habis" : product.track_stock && Number(product.stock_qty ?? 0) <= 5 ? "Stok menipis" : "Aktif"}</span></span>
+                    <span className="text-right"><span className="block text-sm font-semibold">{money(product.price)}</span><span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!product.is_active ? "bg-canvas text-muted" : stockState(product) === "out" ? "bg-red-100 text-red-800" : stockState(product) === "low" ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-800"}`}>{!product.is_active ? "Nonaktif" : stockState(product) === "out" ? "Stok habis" : stockState(product) === "low" ? "Stok menipis" : "Aktif"}</span></span>
                   </summary>
                   {canManage && <form action={updateProduct} className="mt-4 grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-2">
                     <input type="hidden" name="id" value={product.id} />

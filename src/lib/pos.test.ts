@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildQuickCashOptions, calculateChange, parseDiscountInput } from "./pos";
+import {
+  buildQuickCashOptions,
+  calculateChange,
+  LOW_STOCK_THRESHOLD,
+  parseDiscountInput,
+  paymentMethodLabel,
+  parseStockAdjustment,
+  sanitizeSearchTerm,
+  stockState,
+} from "./pos";
 
 describe("parseDiscountInput", () => {
   it("treats an empty or blank field as no discount", () => {
@@ -49,6 +58,68 @@ describe("buildQuickCashOptions", () => {
     expect(buildQuickCashOptions(0)).toEqual([]);
     expect(buildQuickCashOptions(-1)).toEqual([]);
     expect(buildQuickCashOptions(Number.NaN)).toEqual([]);
+  });
+});
+
+describe("stockState", () => {
+  it("ignores products whose stock is not tracked", () => {
+    expect(stockState({ track_stock: false, stock_qty: 0 })).toBe("untracked");
+    expect(stockState({ track_stock: false, stock_qty: null })).toBe("untracked");
+  });
+
+  it("treats a missing tracked stock as sold out", () => {
+    expect(stockState({ track_stock: true, stock_qty: null })).toBe("out");
+    expect(stockState({ track_stock: true, stock_qty: 0 })).toBe("out");
+  });
+
+  it("warns at the threshold and stays quiet above it", () => {
+    expect(stockState({ track_stock: true, stock_qty: LOW_STOCK_THRESHOLD })).toBe("low");
+    expect(stockState({ track_stock: true, stock_qty: 0.5 })).toBe("low");
+    expect(stockState({ track_stock: true, stock_qty: LOW_STOCK_THRESHOLD + 1 })).toBe("ok");
+    expect(stockState({ track_stock: true, stock_qty: "12.5" })).toBe("ok");
+  });
+});
+
+describe("paymentMethodLabel", () => {
+  it("labels every supported and legacy payment method", () => {
+    expect(paymentMethodLabel("cash")).toBe("Tunai");
+    expect(paymentMethodLabel("qris")).toBe("QRIS");
+    expect(paymentMethodLabel("transfer")).toBe("Transfer");
+    expect(paymentMethodLabel("other")).toBe("Lainnya");
+    expect(paymentMethodLabel("unknown")).toBe("Metode lain");
+  });
+});
+
+describe("parseStockAdjustment", () => {
+  it("accepts positive whole and decimal quantities", () => {
+    expect(parseStockAdjustment("12")).toEqual({ amount: 12, error: null });
+    expect(parseStockAdjustment("2.5")).toEqual({ amount: 2.5, error: null });
+    expect(parseStockAdjustment(" 0.001 ")).toEqual({ amount: 0.001, error: null });
+  });
+
+  it("rejects zero, negatives, text, and more than three decimals", () => {
+    expect(parseStockAdjustment("0").error).toBe("invalid");
+    expect(parseStockAdjustment("-3").error).toBe("invalid");
+    expect(parseStockAdjustment("abc").error).toBe("invalid");
+    expect(parseStockAdjustment("1.2345").error).toBe("invalid");
+    expect(parseStockAdjustment("1000001").error).toBe("invalid");
+    expect(parseStockAdjustment("").error).toBe("invalid");
+  });
+});
+
+describe("sanitizeSearchTerm", () => {
+  it("keeps letters, numbers, spaces, and SKU punctuation", () => {
+    expect(sanitizeSearchTerm("Kopi Susu 001")).toBe("Kopi Susu 001");
+    expect(sanitizeSearchTerm("KOP_001-A.2")).toBe("KOP_001-A.2");
+  });
+
+  it("removes PostgREST filter characters", () => {
+    expect(sanitizeSearchTerm("a,b(c)d%e*f")).toBe("abcdef");
+  });
+
+  it("trims and caps the query length", () => {
+    expect(sanitizeSearchTerm("  kopi  ")).toBe("kopi");
+    expect(sanitizeSearchTerm("a".repeat(100), 12)).toHaveLength(12);
   });
 });
 

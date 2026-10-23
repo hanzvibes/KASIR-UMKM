@@ -4,7 +4,7 @@ A mobile-first point-of-sale app for Indonesian small businesses. Built with Nex
 
 ## Current milestone
 
-Current implementation includes tenant-scoped product and category management, optional product variants, shifts, cash movements, atomic checkout with server-priced variants, stock validation and idempotency, receipts, transaction history, expenses, day/week/month profit reporting, staff invitations, settings, a three-step onboarding wizard, and PWA shell behavior. Migrations `202610220006` through `202610220011` have been applied to the connected Supabase development project. Apply all numbered migrations in order when setting up another environment; they preserve the legacy tables and data.
+Current implementation includes tenant-scoped product and category management, optional product variants, low-stock alerts with owner restock, shifts, cash movements, atomic checkout with server-priced variants, stock validation and idempotency, receipts, searchable transaction history, expenses, day/week/month profit reporting with a payment-method breakdown, staff invitations, settings, a three-step onboarding wizard, and PWA shell behavior. Migrations `202610220006` through `202610220011` have been applied to the connected Supabase development project. Migration `202610230001` fixes the QRIS payment constraint and adds owner restock; it is included in the repository and must be applied to each environment before QRIS checkout or quick restock can work. Apply all numbered migrations in order when setting up another environment; they preserve the legacy tables and data.
 
 ## Requirements
 

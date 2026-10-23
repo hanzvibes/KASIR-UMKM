@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseStockAdjustment } from "@/lib/pos";
 
 function textValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -131,6 +132,31 @@ export async function updateProduct(formData: FormData) {
   }
   revalidatePath("/products");
   redirect("/products?success=product_updated");
+}
+
+export async function restockProduct(formData: FormData) {
+  const id = textValue(formData, "id");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) fail("Produk tidak valid.");
+  const parsed = parseStockAdjustment(textValue(formData, "quantity"));
+  if (parsed.error) fail("Jumlah tambah stok harus lebih dari 0 dengan maksimal 3 angka desimal.");
+
+  const { supabase } = await getBusinessContext();
+  const { error } = await supabase.rpc("kasir_adjust_stock", {
+    p_product_id: id,
+    p_quantity_delta: parsed.amount,
+    p_note: "Tambah stok dari peringatan stok",
+  });
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (error.code === "PGRST202" || error.code === "42883") fail("Fitur tambah stok belum tersedia. Terapkan migrasi Supabase terbaru.");
+    if (message.includes("stock tracking")) fail("Produk ini tidak melacak stok.");
+    if (message.includes("product not found")) fail("Produk tidak ditemukan atau sudah diarsipkan.");
+    fail("Stok gagal ditambahkan. Periksa koneksi lalu coba lagi.");
+  }
+  revalidatePath("/products");
+  revalidatePath("/checkout");
+  revalidatePath("/manage");
+  redirect("/products?success=stock_updated");
 }
 
 export async function setProductActive(formData: FormData) {

@@ -100,8 +100,11 @@ export default function CheckoutClient({
   const stockConflicts = cart.flatMap((line) => {
     const product = productById.get(line.productId);
     const quantity = cart.filter((item) => item.productId === line.productId).reduce((sum, item) => sum + item.quantity, 0);
-    return product?.track_stock && product.stock_qty !== null && quantity > product.stock_qty
-      ? [{ name: product.name, available: product.stock_qty, requested: quantity }]
+    // A tracked product with no recorded stock cannot be sold; the server
+    // enforces the same rule, so surface it before the cashier pays.
+    const available = product?.stock_qty ?? 0;
+    return product?.track_stock && quantity > available
+      ? [{ name: product.name, available, requested: quantity }]
       : [];
   }).filter((conflict, index, list) => list.findIndex((item) => item.name === conflict.name) === index);
   const discountResult = parseDiscountInput(discount, subtotal);
@@ -342,7 +345,7 @@ export default function CheckoutClient({
       return;
     }
     const otherQuantity = cart.filter((line) => line.productId === productId && line.variantOptionId !== variantOptionId).reduce((sum, line) => sum + line.quantity, 0);
-    if (product?.track_stock && product.stock_qty !== null && quantity + otherQuantity > product.stock_qty) return;
+    if (product?.track_stock && quantity + otherQuantity > (product.stock_qty ?? 0)) return;
     setCart((current) => current.map((line) => cartLineKey(line.productId, line.variantOptionId) === lineKey ? { ...line, quantity } : line));
     setCashReceived("");
   }
@@ -418,7 +421,7 @@ export default function CheckoutClient({
                 <div className="flex shrink-0 items-center gap-1">
                   <button type="button" aria-label={`Kurangi ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity - 1)} className="press grid h-10 w-10 place-items-center rounded-lg border border-line bg-white active:bg-canvas"><Minus size={15} /></button>
                   <span className="w-7 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity + 1)} disabled={product.track_stock && product.stock_qty !== null && productQuantity >= product.stock_qty} className="press grid h-10 w-10 place-items-center rounded-lg border border-line bg-white active:bg-canvas disabled:opacity-40"><Plus size={15} /></button>
+                  <button type="button" aria-label={`Tambah ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, line.quantity + 1)} disabled={product.track_stock && productQuantity >= (product.stock_qty ?? 0)} className="press grid h-10 w-10 place-items-center rounded-lg border border-line bg-white active:bg-canvas disabled:opacity-40"><Plus size={15} /></button>
                   <button type="button" aria-label={`Hapus ${product.name}`} onClick={() => changeQuantity(product.id, line.variantOptionId, 0)} className="press grid h-10 w-9 place-items-center rounded-lg text-red-600 active:bg-red-50"><Trash2 size={16} /></button>
                 </div>
               </li>

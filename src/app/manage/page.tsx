@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { LOW_STOCK_THRESHOLD } from "@/lib/pos";
 import PageHeader from "@/components/page-header";
 
 type ManageItem = {
@@ -114,7 +115,7 @@ export default async function ManagePage() {
       .eq("is_active", true)
       .eq("track_stock", true)
       .is("deleted_at", null)
-      .lte("stock_qty", 5),
+      .or(`stock_qty.is.null,stock_qty.lte.${LOW_STOCK_THRESHOLD}`),
   ]);
 
   const visibleGroups = groups
@@ -162,7 +163,7 @@ export default async function ManagePage() {
           >
             <TriangleAlert size={18} className="shrink-0" />
             <span className="min-w-0 flex-1 font-medium">
-              {lowStockCount} produk aktif stoknya tinggal 5 atau kurang. Buka daftar stok untuk memeriksa dan memperbarui jumlahnya.
+              {lowStockCount} produk aktif stoknya tinggal {LOW_STOCK_THRESHOLD} atau kurang. Buka daftar stok untuk memeriksa dan memperbarui jumlahnya.
             </span>
             <ChevronRight size={17} className="shrink-0" />
           </Link>

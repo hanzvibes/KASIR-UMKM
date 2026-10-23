@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { CheckCircle2, Plus, Printer } from "lucide-react";
 import { formatIDR } from "@/lib/money";
+import { paymentMethodLabel } from "@/lib/pos";
 
 type CompletedSale = {
   id: string;
@@ -13,8 +14,6 @@ type CompletedSale = {
   cash_received: number | string | null;
   change_due: number | string | null;
 };
-
-const paymentLabels: Record<string, string> = { cash: "Tunai", transfer: "Transfer", qris: "QRIS" };
 
 export default function SaleComplete({ sale, businessId }: { sale: CompletedSale; businessId: string }) {
   const newSaleRef = useRef<HTMLAnchorElement>(null);
@@ -56,7 +55,7 @@ export default function SaleComplete({ sale, businessId }: { sale: CompletedSale
         <dl className="mt-6 divide-y divide-line rounded-2xl bg-canvas px-4 text-left text-sm">
           <div className="flex items-center justify-between gap-3 py-3">
             <dt className="text-muted">Metode</dt>
-            <dd className="font-semibold">{paymentLabels[sale.payment_method] ?? sale.payment_method}</dd>
+            <dd className="font-semibold">{paymentMethodLabel(sale.payment_method)}</dd>
           </div>
           {isCash && (
             <div className="flex items-center justify-between gap-3 py-3">

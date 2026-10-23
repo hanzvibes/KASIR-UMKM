@@ -7,6 +7,8 @@ const guides = [
   ["Kas masuk dan keluar", "Di layar kasir, buka menu ⋮ lalu pilih Catat kas. Pilih jenis pergerakan, isi nominal dan alasan, lalu simpan."],
   ["Menutup shift", "Buka menu ⋮ di layar kasir, pilih Tutup shift, masukkan uang fisik di laci, lalu konfirmasi. Laporan penutupan langsung tampil dan bisa dicetak."],
   ["Mengelola produk", "Buka menu Kelola → Produk & stok. Pemilik bisa menambah atau mengubah produk dan harga."],
+  ["Stok menipis", "Di Kelola → Produk & stok, panel Stok perlu perhatian menampilkan produk aktif dengan stok 5 atau kurang, termasuk yang habis. Pemilik bisa langsung mengisi jumlah stok masuk di panel itu; kasir bisa melihat daftar yang perlu disiapkan."],
+  ["Mencari transaksi", "Buka Transaksi lalu masukkan nomor invoice dari struk, misalnya INV-20261023-0001. Filter status dan metode pembayaran membantu mempersempit hasil di halaman tersebut."],
 ];
 
 export default function HelpPage() {

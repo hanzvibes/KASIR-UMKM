@@ -1,6 +1,6 @@
 begin;
 
-select plan(50);
+select plan(54);
 
 -- Fixtures are rolled back so this test can run repeatedly against a local database.
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
@@ -242,6 +242,18 @@ do $$ begin
  perform public.kasir_close_shift((select id from public.kasir_shifts where cashier_id='a0000000-0000-4000-8000-000000000001' and status='open'),2300,null);
 end $$;
 select is((select expected_cash from public.kasir_shifts where cashier_id='a0000000-0000-4000-8000-000000000001' and status='closed' order by opened_at desc limit 1),2300::bigint,'closing cash includes opening balance, cash sale, cash in and cash out');
+
+-- Restock is owner-only, tracked-stock-only, and leaves an inventory movement.
+select is((public.kasir_adjust_stock('a3000000-0000-4000-8000-000000000001', 5, 'Restock')->>'stock_qty')::numeric, 14::numeric, 'owner can add stock to a tracked product');
+select is((select quantity_delta from public.kasir_stock_movements where product_id='a3000000-0000-4000-8000-000000000001' and movement_type='adjustment' and note='Restock'), 5::numeric, 'restock writes an adjustment movement');
+select throws_ok(
+ $$select public.kasir_adjust_stock('a3000000-0000-4000-8000-000000000001', 0, 'Nol')$$,
+ '22023', null, 'restock rejects a zero quantity'
+);
+select throws_ok(
+ $$select public.kasir_adjust_stock('b3000000-0000-4000-8000-000000000002', 5, 'Lintas tenant')$$,
+ '42501', null, 'owner cannot restock another tenant product'
+);
 
 select set_config('request.jwt.claim.sub', 'c0000000-0000-4000-8000-000000000003', true);
 select set_config('request.jwt.claims', '{"sub":"c0000000-0000-4000-8000-000000000003","role":"authenticated"}', true);

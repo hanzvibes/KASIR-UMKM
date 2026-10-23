@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ReceiptText, X } from "lucide-react";
+import { paymentMethodLabel } from "@/lib/pos";
 
 type Sale = { id: string; invoice_no: string | null; payment_method: string; total_amount: number; created_at: string; status: string };
 type PageData = { sales: Sale[]; hasNextPage: boolean };
-const paymentLabels: Record<string, string> = { cash: "Tunai", transfer: "Transfer", qris: "QRIS" };
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
 export default function ActivityPanel() {
@@ -72,7 +72,7 @@ export default function ActivityPanel() {
           {!loading && !error && sales.length === 0 && <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center"><ReceiptText size={26} className="mx-auto text-muted" /><p className="mt-3 font-semibold">Belum ada transaksi</p></div>}
           {sales.length > 0 && <div className="overflow-hidden rounded-2xl border border-line bg-white">{sales.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} onClick={() => setOpen(false)} className="flex items-center gap-3 border-b border-line p-4 last:border-0 hover:bg-canvas">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${sale.status === "voided" ? "bg-red-50 text-red-700" : "bg-brand-soft text-brand"}`} aria-hidden="true">{sale.status === "voided" ? "×" : "✓"}</span>
-            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{sale.invoice_no ?? `Struk #${sale.id.slice(0, 8).toUpperCase()}`}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentLabels[sale.payment_method] ?? sale.payment_method}</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{sale.invoice_no ?? `Struk #${sale.id.slice(0, 8).toUpperCase()}`}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentMethodLabel(sale.payment_method)}</span></span>
             <span className="text-right"><span className="block text-sm font-bold tabular-nums">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs ${sale.status === "voided" ? "text-red-700" : "text-green-700"}`}>{sale.status === "voided" ? "Dibatalkan" : "Tersimpan"}</span></span>
           </Link>)}</div>}
           {!loading && sales.length > 0 && <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3"><span className="text-sm text-muted">Halaman {page}</span><div className="flex gap-2">{page > 1 && <button type="button" onClick={() => void loadPage(page - 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Sebelumnya</button>}{hasNextPage && <button type="button" onClick={() => void loadPage(page + 1)} className="rounded-lg border border-line px-3 py-2 text-sm font-semibold">Berikutnya</button>}</div></div>}

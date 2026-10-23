@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight, Download, ReceiptText, ShoppingBag, TrendingDown, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { paymentMethodLabel } from "@/lib/pos";
 import PageHeader from "@/components/page-header";
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
@@ -51,7 +52,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const from = `${range.start}T00:00:00+07:00`;
   const to = new Date(new Date(`${range.end}T00:00:00+07:00`).getTime() + 86400000).toISOString();
   const [{ data: sales, error: salesError }, { data: expenses, error: expensesError }] = await Promise.all([
-    supabase.from("kasir_sales").select("id, total_amount, payment_method, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to).order("created_at", { ascending: false }).range(0, 4999),
+    supabase.from("kasir_sales").select("id, invoice_no, total_amount, payment_method, created_at").eq("business_id", membership.business_id).eq("status", "completed").gte("created_at", from).lt("created_at", to).order("created_at", { ascending: false }).range(0, 4999),
     supabase.from("kasir_expenses").select("amount, expense_date").eq("business_id", membership.business_id).gte("expense_date", range.start).lte("expense_date", range.end).range(0, 4999),
   ]);
 
@@ -77,6 +78,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   }
   const bestSellers = [...bestSellerMap].sort((a, b) => b[1].quantity - a[1].quantity).slice(0, 5);
   const recentSales = saleList.slice(0, 5);
+  const paymentBreakdown = ([
+    { id: "cash", label: "Tunai" },
+    { id: "qris", label: "QRIS" },
+    { id: "transfer", label: "Transfer" },
+    { id: "other", label: "Lainnya" },
+  ] as const)
+    .map((bucket) => {
+      const rows = saleList.filter((sale) => sale.payment_method === bucket.id);
+      return { ...bucket, count: rows.length, total: rows.reduce((sum, sale) => sum + Number(sale.total_amount), 0) };
+    })
+    .filter((bucket) => bucket.count > 0 || bucket.id !== "other");
   const periodQuery = (period: string) => `/reports?period=${period}`;
 
   const cards = [
@@ -125,6 +137,37 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           ))}
         </div>
 
+        <section aria-labelledby="payment-summary-title" className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 id="payment-summary-title" className="font-semibold">Metode pembayaran</h2>
+            <span className="text-xs text-muted">{range.label}</span>
+          </div>
+          {salesError ? (
+            <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Ringkasan metode pembayaran gagal dimuat.</p>
+          ) : saleList.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line bg-canvas/60 px-4 py-5 text-center text-sm text-muted">Belum ada pembayaran pada periode ini.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {paymentBreakdown.map((bucket) => {
+                const share = revenue > 0 ? Math.round((bucket.total / revenue) * 100) : 0;
+                return (
+                  <div key={bucket.id} className="rounded-xl bg-canvas p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">{bucket.label}</span>
+                      <span className="text-xs text-muted">{bucket.count} transaksi</span>
+                    </div>
+                    <strong className="mt-1 block text-base tabular-nums">{money(bucket.total)}</strong>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line" role="presentation">
+                      <div className="h-full rounded-full bg-brand" style={{ width: `${share}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted">{share}% dari omzet</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -167,9 +210,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                     <Link href={`/sales/${sale.id}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><ReceiptText size={17} /></span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span>
+                        <span className="block truncate text-sm font-semibold">{sale.invoice_no ?? `Struk #${sale.id.slice(0, 8).toUpperCase()}`}</span>
                         <span className="mt-0.5 block text-xs text-muted">
-                          {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "QRIS"}
+                          {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentMethodLabel(sale.payment_method)}
                         </span>
                       </span>
                       <strong className="shrink-0 text-sm tabular-nums">{money(Number(sale.total_amount))}</strong>

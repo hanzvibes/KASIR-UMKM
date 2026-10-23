@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { paymentMethodLabel } from "@/lib/pos";
 import PrintReceiptButton from "./print-button";
 import { voidSaleAction } from "../actions";
 import ShareReceipt from "./share-receipt";
@@ -37,7 +38,7 @@ export default async function SaleReceiptPage({ params, searchParams }: { params
   if (itemsError) notFound();
 
   const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sale.created_at));
-  const paymentLabel = sale.payment_method === "cash" ? "Tunai" : sale.payment_method === "transfer" ? "Transfer" : "QRIS";
+  const paymentLabel = paymentMethodLabel(sale.payment_method);
   const isVoided = sale.status === "voided";
 
   return (

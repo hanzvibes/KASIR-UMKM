@@ -2,16 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { paymentMethodLabel } from "@/lib/pos";
 
 type Sale = {
   id: string;
+  invoice_no: string | null;
   payment_method: string;
   total_amount: number;
   created_at: string;
   status: string;
 };
 
-const paymentLabels: Record<string, string> = { cash: "Tunai", transfer: "Transfer", qris: "QRIS" };
 const money = (value: number | string) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value));
 
 export default function SalesFilters({ sales }: { sales: Sale[] }) {
@@ -40,7 +41,7 @@ export default function SalesFilters({ sales }: { sales: Sale[] }) {
         <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
           {visibleSales.map((sale) => <Link key={sale.id} href={`/sales/${sale.id}`} className="flex items-center gap-3 border-b border-line p-4 last:border-b-0 hover:bg-canvas sm:px-5">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${sale.status === "voided" ? "bg-red-50 text-red-700" : "bg-brand-soft text-brand"}`}><span aria-hidden="true" className="text-sm font-bold">{sale.status === "voided" ? "×" : "✓"}</span></span>
-            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Struk #{sale.id.slice(0, 8).toUpperCase()}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentLabels[sale.payment_method] ?? sale.payment_method}</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{sale.invoice_no ?? `Struk #${sale.id.slice(0, 8).toUpperCase()}`}</span><span className="mt-1 block text-xs text-muted">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(sale.created_at))} · {paymentMethodLabel(sale.payment_method)}</span></span>
             <span className="text-right"><span className="block text-sm font-bold tabular-nums">{money(sale.total_amount)}</span><span className={`mt-1 block text-xs font-medium ${sale.status === "voided" ? "text-red-700" : "text-green-700"}`}>{sale.status === "voided" ? "Dibatalkan" : "Tersimpan"}</span></span>
           </Link>)}
         </div>
