@@ -99,3 +99,28 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 @media (min-width: 768px) {
   body { background-image: radial-gradient(ellipse at 50% -30%, rgb(222 237 225 / 56%), transparent 54%); }
 }
+
+@media print {
+  @page { size: 80mm auto; margin: 3mm; }
+  html, body { width: 80mm !important; min-height: 0 !important; margin: 0 !important; background: #fff !important; }
+  body { color: #000 !important; font-family: Arial, sans-serif !important; font-size: 10pt !important; }
+  body * { visibility: hidden !important; }
+  body article[data-thermal-receipt], body article[data-thermal-receipt] * { visibility: visible !important; }
+  body article[data-thermal-receipt] {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 74mm !important;
+    max-width: 74mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #000 !important;
+    font-size: 9pt !important;
+  }
+  body article[data-thermal-receipt] * { color: #000 !important; }
+  body article[data-thermal-receipt] img { max-width: 30mm !important; max-height: 18mm !important; }
+  body article[data-thermal-receipt] .receipt-items { margin-block: 3mm !important; padding-block: 2mm !important; }
+  body article[data-thermal-receipt] .receipt-line { break-inside: avoid; margin-bottom: 2mm !important; }
+  body article[data-thermal-receipt] .receipt-total { font-size: 11pt !important; }
+}
