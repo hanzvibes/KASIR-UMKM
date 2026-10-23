@@ -62,6 +62,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { data: saleItems, error: itemsError } = saleList.length
     ? await supabase.from("kasir_sale_items").select("product_name, unit_cost, quantity, line_total").eq("business_id", membership.business_id).in("sale_id", saleList.map((sale) => sale.id)).range(0, 9999)
     : { data: [], error: null };
+  const reportIncomplete = Boolean(salesError || expensesError || itemsError);
   const cogs = (saleItems ?? []).reduce((sum, item) => sum + Number(item.unit_cost ?? 0) * Number(item.quantity), 0);
   const grossProfit = revenue - cogs;
   const netProfit = grossProfit - expenseTotal;
@@ -81,8 +82,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const cards = [
     { label: "Penjualan", value: salesError ? "—" : money(revenue), detail: salesError ? "Gagal dimuat" : `${saleList.length} transaksi`, icon: ArrowUpRight },
     { label: "Pengeluaran", value: expensesError ? "—" : money(expenseTotal), detail: expensesError ? "Gagal dimuat" : `${expenseList.length} catatan`, icon: TrendingDown },
-    { label: "Laba kotor", value: itemsError ? "—" : money(grossProfit), detail: itemsError ? "Data HPP gagal dimuat" : "Penjualan − HPP", icon: ShoppingBag },
-    { label: "Laba bersih", value: itemsError || expensesError ? "—" : money(netProfit), detail: "Setelah pengeluaran", icon: Wallet },
+    { label: "Laba kotor", value: itemsError || salesError ? "—" : money(grossProfit), detail: itemsError || salesError ? "Rincian transaksi belum lengkap" : "Penjualan − HPP", icon: ShoppingBag },
+    { label: "Laba bersih", value: itemsError || salesError || expensesError ? "—" : money(netProfit), detail: "Setelah pengeluaran", icon: Wallet },
   ];
 
   return (
@@ -104,10 +105,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           ))}
         </nav>
 
-        {(salesError || expensesError) && (
-          <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Sebagian data laporan gagal dimuat. Muat ulang halaman; angka yang tampil mungkin belum lengkap.
-          </p>
+        {reportIncomplete && (
+          <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+            <p><strong>Laporan belum lengkap.</strong> Beberapa angka laba disembunyikan agar tidak menyesatkan. Coba muat ulang untuk mengambil data terbaru.</p>
+            <Link href={periodQuery(selectedPeriod)} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 font-semibold hover:bg-amber-100">Coba lagi</Link>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

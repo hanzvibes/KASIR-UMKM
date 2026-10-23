@@ -102,8 +102,17 @@ export default function CheckoutClient({
     return sum + Math.round((Number(product?.price ?? 0) + Number(option?.price_delta ?? 0)) * line.quantity);
   }, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const stockConflicts = cart.flatMap((line) => {
+    const product = productById.get(line.productId);
+    const quantity = cart.filter((item) => item.productId === line.productId).reduce((sum, item) => sum + item.quantity, 0);
+    return product?.track_stock && product.stock_qty !== null && quantity > product.stock_qty
+      ? [{ name: product.name, available: product.stock_qty, requested: quantity }]
+      : [];
+  }).filter((conflict, index, list) => list.findIndex((item) => item.name === conflict.name) === index);
   const discountAmount = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) ? Number(discount) : 0;
   const total = Math.max(0, subtotal - discountAmount);
+  const cashIsValid = paymentMethod !== "cash" || (cashReceived !== "" && Number.isSafeInteger(Number(cashReceived)) && Number(cashReceived) >= total);
+  const discountIsValid = /^\d+$/.test(discount) && Number.isSafeInteger(Number(discount)) && discountAmount <= subtotal;
   const quickCashAmounts = [...new Set([
     total,
     Math.ceil(total / 10_000) * 10_000,
@@ -240,9 +249,18 @@ export default function CheckoutClient({
       event.preventDefault();
       searchRef.current?.focus();
     };
+    const openPayment = (event: KeyboardEvent) => {
+      if (event.key !== "F2" || !cart.length || variantProductId) return;
+      event.preventDefault();
+      setCartOpen(true);
+    };
     window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
+    window.addEventListener("keydown", openPayment);
+    return () => {
+      window.removeEventListener("keydown", focusSearch);
+      window.removeEventListener("keydown", openPayment);
+    };
+  }, [cart.length, variantProductId]);
 
   useEffect(() => {
     if (!lastAddedId) return;
@@ -303,6 +321,7 @@ export default function CheckoutClient({
   }
 
   function clearCart() {
+    if (cart.length > 0 && !window.confirm(`Kosongkan ${itemCount} barang dari keranjang?`)) return;
     setCart([]);
     setCashReceived("");
     setDiscount("0");
@@ -350,7 +369,13 @@ export default function CheckoutClient({
       event.preventDefault();
       return;
     }
-    if (submitting || cart.length === 0) {
+    if (submitting || cart.length === 0 || !cashIsValid || !discountIsValid || stockConflicts.length > 0) {
+      event.preventDefault();
+      return;
+    }
+    const paymentLabel = paymentMethod === "cash" ? "Tunai" : paymentMethod === "qris" ? "QRIS" : "Transfer";
+    const cashSummary = paymentMethod === "cash" ? `\nUang diterima: ${rupiah(Number(cashReceived))}\nKembalian: ${rupiah(Number(cashReceived) - total)}` : "";
+    if (!window.confirm(`Simpan transaksi ini?\n\n${itemCount} barang · ${cart.length} jenis\nSubtotal: ${rupiah(subtotal)}${discountAmount ? `\nDiskon: −${rupiah(discountAmount)}` : ""}\nTotal: ${rupiah(total)}\nPembayaran: ${paymentLabel}${cashSummary}`)) {
       event.preventDefault();
       return;
     }
@@ -417,9 +442,18 @@ export default function CheckoutClient({
         <form action={checkoutAction} onSubmit={handleSubmit} className="mt-4 space-y-3">
           <input type="hidden" name="items" value={serializedItems} />
           <input type="hidden" name="idempotency_key" value={activeIdempotencyKey} />
-          <label className="grid gap-1.5 text-sm font-medium">Diskon (Rp, opsional)
-            <input name="discount" type="number" min="0" max={subtotal} step="1" value={discount} onChange={(event) => setDiscount(event.target.value)} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
-          </label>
+          <details className="group rounded-xl border border-line bg-white">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold marker:hidden">
+              <span>Tambahkan diskon</span>
+              <span className="text-xs font-medium text-muted group-open:hidden">Opsional</span>
+            </summary>
+            <div className="border-t border-line p-3">
+              <label className="grid gap-1.5 text-sm font-medium">Diskon dalam rupiah
+                <input name="discount" type="number" min="0" max={subtotal} step="1" inputMode="numeric" value={discount} onChange={(event) => setDiscount(event.target.value)} aria-invalid={!discountIsValid} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
+              </label>
+              {!discountIsValid && <p role="alert" className="mt-1.5 text-xs text-red-700">Diskon tidak boleh melebihi subtotal {rupiah(subtotal)}.</p>}
+            </div>
+          </details>
           <div className="grid grid-cols-3 gap-2" aria-label="Metode pembayaran">
             {[
               { value: "cash", label: "Tunai" },
@@ -458,10 +492,11 @@ export default function CheckoutClient({
             </div>
           )}
           {paymentMethod === "qris" && <div className="rounded-xl border border-line bg-white p-3 text-center">{qrisImageUrl ? <Image src={qrisImageUrl} alt="QRIS usaha" width={240} height={240} unoptimized className="mx-auto max-h-60 w-auto object-contain" /> : <p className="text-sm text-muted">Gambar QRIS belum diatur. Tambahkan di Pengaturan usaha.</p>}<p className="mt-2 text-sm font-semibold">Tunjukkan QRIS ini kepada pelanggan</p></div>}
-          <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online}
+          <button type="submit" disabled={cart.length === 0 || products.length === 0 || submitting || !online || !cashIsValid || !discountIsValid || stockConflicts.length > 0}
             className="press flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-[#196640] disabled:cursor-not-allowed disabled:opacity-50">
-            {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan transaksi</>}
+            {!online ? "Checkout tersedia saat online" : submitting ? "Menyimpan transaksi…" : <><CheckCircle2 size={17} /> Simpan · {rupiah(total)}</>}
           </button>
+          {paymentMethod === "cash" && !cashIsValid && <p className="text-center text-xs text-amber-800">Masukkan uang diterima atau pilih nominal cepat untuk melanjutkan.</p>}
           <p className="text-center text-[11px] leading-4 text-muted">Harga dan stok diverifikasi ulang saat transaksi disimpan.</p>
         </form>
       </div>
@@ -491,8 +526,11 @@ export default function CheckoutClient({
         const product = productById.get(variantProductId)!;
         const group = variantByProductId.get(variantProductId)!;
         return <div className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-[2px] animate-fade-in" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setVariantProductId(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="variant-picker-title" className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:mx-auto sm:max-w-xl sm:rounded-3xl sm:p-6">
-            <div className="mb-4"><p className="text-xs font-bold uppercase tracking-wider text-brand">Pilihan produk</p><h2 id="variant-picker-title" className="mt-1 text-xl font-bold">{product.name}</h2><p className="mt-1 text-sm text-muted">Pilih {group.name.toLocaleLowerCase("id-ID")} untuk melanjutkan.</p></div>
+          <section role="dialog" aria-modal="true" aria-labelledby="variant-picker-title" className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:mx-auto sm:max-w-xl sm:rounded-3xl sm:p-6">            <div className="mb-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-brand">Pilihan produk</p>
+              <h2 id="variant-picker-title" className="mt-1 text-xl font-bold">{product.name}</h2>
+              <p className="mt-1 text-sm text-muted">Pilih {group.name.toLocaleLowerCase("id-ID")} untuk melanjutkan.</p>
+            </div>
             <div className="space-y-2">{group.options.map((option) => {
               const price = Number(product.price) + option.price_delta;
               return <button key={option.id} type="button" onClick={() => chooseVariant(option.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left hover:border-brand hover:bg-brand-soft/30"><span className="font-semibold">{option.name}</span><span className="text-sm font-bold tabular-nums">{rupiah(price)}{option.price_delta !== 0 && <span className="ml-1 text-xs font-normal text-muted">({option.price_delta > 0 ? "+" : "−"}{rupiah(Math.abs(option.price_delta))})</span>}</span></button>;
@@ -502,6 +540,9 @@ export default function CheckoutClient({
           </section>
         </div>;
       })()}
+      {!online && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"><p className="font-bold">Koneksi internet terputus</p><p className="mt-1">Keranjang tersimpan di perangkat ini, tetapi transaksi belum tercatat. Sambungkan kembali ke internet sebelum menyimpan.</p></div>}
+      {online && <p className="sr-only" role="status">Koneksi internet aktif. Transaksi dapat disimpan.</p>}
+      {stockConflicts.length > 0 && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900"><p className="font-bold">Stok berubah sejak katalog dimuat</p><ul className="mt-1 list-inside list-disc">{stockConflicts.map((conflict) => <li key={conflict.name}>{conflict.name}: di keranjang {conflict.requested}, stok saat ini {conflict.available}. Kurangi jumlahnya sebelum menyimpan.</li>)}</ul></div>}
       {draftRestored && itemCount > 0 && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">Keranjang sebelumnya dipulihkan. Periksa kembali jumlah barang dan stok sebelum menyimpan.</p>}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.8fr)] xl:items-start">
         <section className="min-w-0 rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">
@@ -511,10 +552,10 @@ export default function CheckoutClient({
               <h2 className="mt-1 text-lg font-bold">Pilih produk</h2>
               <p className="mt-1 text-xs text-muted">{filteredProducts.length} dari {products.length} produk aktif</p>
             </div>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><ShoppingCart size={20} /></span>
+            <span className="hidden shrink-0 rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand sm:inline-flex">Tekan / untuk cari · F2 untuk bayar</span>
           </div>
 
-          <div className="sticky top-16 z-10 -mx-4 -mt-1 mb-3 border-b border-line/70 bg-white/95 px-4 pb-2 pt-2 backdrop-blur sm:-mx-5 sm:px-5">
+          <div className={`sticky z-10 -mx-4 -mt-1 mb-3 border-b border-line/70 bg-white/95 px-4 pb-2 pt-2 backdrop-blur transition-[top] sm:-mx-5 sm:px-5 ${cartOpen ? "top-0" : "top-16"}`}>
             <label className="relative block">
               <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input ref={searchRef} type="search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={handleSearchKeyDown}
@@ -606,13 +647,13 @@ export default function CheckoutClient({
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/45 backdrop-blur-[2px] animate-fade-in" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-cart-title"
-            className="max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-canvas p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:px-6">
+            className="max-h-[calc(100dvh-env(safe-area-inset-bottom))] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-canvas p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-sheet-up sm:px-6">
             <div className="mx-auto max-w-2xl">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="sticky top-[-1rem] z-10 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
                 <div><p className="text-xs font-bold uppercase tracking-wider text-brand">Transaksi berjalan</p><h2 id="mobile-cart-title" className="mt-1 text-xl font-bold">Keranjang & pembayaran</h2></div>
                 <div className="flex items-center gap-1">
                   {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Kosongkan</button>}
-                  <button type="button" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
+                  <button type="button" aria-label="Tutup keranjang" onClick={() => setCartOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-white text-muted"><X size={19} /></button>
                 </div>
               </div>
               <section className="rounded-2xl border border-line bg-white p-4 shadow-soft sm:p-5">

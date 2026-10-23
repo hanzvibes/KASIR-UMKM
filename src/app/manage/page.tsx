@@ -91,7 +91,7 @@ export default async function ManagePage() {
   const membership = memberships?.[0];
   if (!membership) redirect("/onboarding");
 
-  const [{ data: business }, { data: activeShift }, { count: lowStockCount }] = await Promise.all([
+  const [{ data: business, error: businessError }, { data: activeShift, error: shiftError }, { count: lowStockCount, error: stockError }] = await Promise.all([
     supabase.from("kasir_businesses").select("name").eq("id", membership.business_id).maybeSingle(),
     supabase
       .from("kasir_shifts")
@@ -119,6 +119,7 @@ export default async function ManagePage() {
       <PageHeader title="Kelola usaha" subtitle={business?.name ?? "Semua fitur dalam satu tempat"} />
 
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-7">
+        {(businessError || shiftError || stockError) && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"><strong>Sebagian status usaha belum termuat.</strong> Muat ulang untuk memastikan informasi shift dan stok terbaru.</div>}
         <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
           <div className="flex items-start gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
@@ -146,7 +147,7 @@ export default async function ManagePage() {
           </Link>
         </section>
 
-        {lowStockCount ? (
+        {typeof lowStockCount === "number" && lowStockCount > 0 ? (
           <Link
             href="/products"
             prefetch={true}
@@ -154,7 +155,7 @@ export default async function ManagePage() {
           >
             <TriangleAlert size={18} className="shrink-0" />
             <span className="min-w-0 flex-1 font-medium">
-              {lowStockCount} produk stoknya tinggal 5 atau kurang. Periksa stok sebelum berjualan.
+              {lowStockCount} produk aktif stoknya tinggal 5 atau kurang. Buka daftar stok untuk memeriksa dan memperbarui jumlahnya.
             </span>
             <ChevronRight size={17} className="shrink-0" />
           </Link>

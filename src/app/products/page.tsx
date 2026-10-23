@@ -70,6 +70,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     options: (variantOptions ?? []).filter((option) => option.group_id === group.id).map((option) => ({ name: option.name, price_delta: Number(option.price_delta) })),
   }]));
   const categoryNames = new Map(categoryList.map((category) => [category.id, category.name]));
+  const lowStockCount = productList.filter((product) => product.is_active && product.track_stock && Number(product.stock_qty ?? 0) <= 5).length;
+  const outOfStockCount = productList.filter((product) => product.is_active && product.track_stock && Number(product.stock_qty ?? 0) <= 0).length;
   const canManage = membership.role === "owner";
   const pageHref = (nextPage: number) => `/products?${new URLSearchParams({ ...(searchTerm ? { search: searchTerm } : {}), page: String(nextPage) })}`;
 
@@ -81,6 +83,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
         {params.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.success && successMessages[params.success] && <p role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessages[params.success]}</p>}
         {(categoriesError || productsError || variantsError || optionsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Data produk, kategori, atau varian gagal dimuat. Muat ulang halaman; jika tetap gagal, periksa koneksi database dan migrasi.</p>}
+        {!productsError && (lowStockCount > 0 || outOfStockCount > 0) && <div className="grid gap-2 sm:grid-cols-2" aria-label="Ringkasan stok"><div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"><strong>{lowStockCount}</strong> produk aktif stoknya 5 atau kurang di halaman ini.</div>{outOfStockCount > 0 && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"><strong>{outOfStockCount}</strong> produk habis dan tidak dapat dijual.</div>}<p className="text-xs text-muted sm:col-span-2">Ringkasan ini mengikuti halaman dan hasil pencarian yang sedang dibuka.</p></div>}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
           <section className="rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-6">
@@ -150,7 +153,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
                   <summary className="flex cursor-pointer list-none items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-brand"><PackagePlus size={18} /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{product.name}</span><span className="mt-1 block text-xs text-muted">{categoryNames.get(product.category_id ?? "") ?? "Tanpa kategori"} · {product.sku || "Tanpa SKU"}{product.track_stock ? ` · Stok ${product.stock_qty ?? 0} ${product.unit}` : " · Stok tidak dilacak"}</span></span>
-                    <span className="text-right"><span className="block text-sm font-semibold">{money(product.price)}</span><span className={`mt-1 block text-xs ${product.is_active ? "text-green-700" : "text-muted"}`}>{product.is_active ? "Aktif" : "Nonaktif"}</span></span>
+                    <span className="text-right"><span className="block text-sm font-semibold">{money(product.price)}</span><span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${!product.is_active ? "bg-canvas text-muted" : product.track_stock && Number(product.stock_qty ?? 0) <= 0 ? "bg-red-100 text-red-800" : product.track_stock && Number(product.stock_qty ?? 0) <= 5 ? "bg-amber-100 text-amber-900" : "bg-green-100 text-green-800"}`}>{!product.is_active ? "Nonaktif" : product.track_stock && Number(product.stock_qty ?? 0) <= 0 ? "Stok habis" : product.track_stock && Number(product.stock_qty ?? 0) <= 5 ? "Stok menipis" : "Aktif"}</span></span>
                   </summary>
                   {canManage && <form action={updateProduct} className="mt-4 grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-2">
                     <input type="hidden" name="id" value={product.id} />
